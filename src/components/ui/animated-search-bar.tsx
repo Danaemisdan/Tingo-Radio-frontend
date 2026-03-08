@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
 
@@ -37,7 +37,11 @@ const GooeyFilter = () => {
   );
 };
 
-const SearchIcon = ({ isUnsupported }) => {
+interface SearchIconProps {
+  isUnsupported: boolean;
+}
+
+const SearchIcon = ({ isUnsupported }: SearchIconProps) => {
   return (
     <motion.svg
       initial={{
@@ -181,7 +185,11 @@ const LoadingIcon = () => {
   );
 };
 
-const InfoIcon = ({ index }) => {
+interface InfoIconProps {
+  index: number;
+}
+
+const InfoIcon = ({ index }: InfoIconProps) => {
   return (
     <motion.svg
       initial={{ opacity: 0 }}
@@ -216,8 +224,8 @@ const iconVariants = {
   visible: { x: 16, opacity: 1 },
 };
 
-const useDebounce = (value, delay) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -249,7 +257,7 @@ export const isUnsupportedBrowser = () => {
   return isSafari || isChromeOniOS;
 };
 
-const getResultItemVariants = (index, isUnsupported) => ({
+const getResultItemVariants = (index: number, isUnsupported: boolean) => ({
   initial: {
     y: 0,
     scale: 0.3,
@@ -267,7 +275,7 @@ const getResultItemVariants = (index, isUnsupported) => ({
   },
 });
 
-const getResultItemTransition = (index) => ({
+const getResultItemTransition = (index: number): any => ({
   duration: 0.75,
   delay: index * 0.12,
   type: "spring",
@@ -277,11 +285,11 @@ const getResultItemTransition = (index) => ({
 });
 
 export const GooeySearchBar = () => {
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState({
     step: 1,
-    searchData: [],
+    searchData: [] as string[],
     searchText: "",
     isLoading: false,
   });
@@ -293,7 +301,7 @@ export const GooeySearchBar = () => {
     setState((prevState) => ({ ...prevState, step: 2 }));
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: ChangeEvent<HTMLInputElement>) => {
     setState((prevState) => ({ ...prevState, searchText: e.target.value }));
   };
 
@@ -389,6 +397,7 @@ export const GooeySearchBar = () => {
                     transition={getResultItemTransition(index)}
                     className="search-result"
                     role="option"
+                    aria-selected="false"
                   >
                     <div className="flex items-center gap-3 px-3 py-2 text-sm text-zinc-300 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer">
                       <InfoIcon index={index} />
