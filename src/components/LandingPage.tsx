@@ -8,6 +8,7 @@ import MusicArtwork from '@/components/ui/music-artwork';
 import { SiriOrb } from '@/components/ui/siri-orb';
 import Link from 'next/link';
 import { BentoGridDark } from '@/components/ui/bento';
+import OAPOrbitingCarousel from '@/components/ui/oap-carousel';
 interface LandingPageProps {
     onEnterRadio: () => void;
 }
@@ -147,6 +148,9 @@ export default function LandingPage({ onEnterRadio }: LandingPageProps) {
                 <BentoGridDark />
             </div>
 
+
+            {/* ---------------- OAP SECTION ---------------- */}
+            <OAPOrbitingCarousel />
 
             {/* ---------------- SCENIC STATIC FOOTER ---------------- */}
             <footer className="relative w-full h-[500px] md:h-[600px] flex flex-col items-center justify-end pb-12 overflow-hidden border-t border-white/5 mt-12">
