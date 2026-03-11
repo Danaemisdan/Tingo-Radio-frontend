@@ -258,25 +258,6 @@ export default function OAPOrbitingCarousel() {
                     })}
                 </div>
 
-                {/* Dot indicators */}
-                <div className="flex justify-center mt-12 gap-2">
-                    {oaps.map((_, idx) => (
-                        <motion.button
-                            key={idx}
-                            onClick={() => setActiveIndex(idx)}
-                            className="h-1.5 rounded-full transition-all duration-300"
-                            style={{
-                                width: idx === activeIndex ? 28 : 6,
-                                background:
-                                    idx === activeIndex
-                                        ? "#FF6B35"
-                                        : "rgba(255,255,255,0.2)",
-                            }}
-                            whileHover={{ scale: 1.3 }}
-                            whileTap={{ scale: 0.9 }}
-                        />
-                    ))}
-                </div>
             </div>
         </section>
     );
