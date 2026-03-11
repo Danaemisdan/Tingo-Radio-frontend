@@ -105,14 +105,14 @@ export default function OAPOrbitingCarousel() {
                     className="relative flex items-center justify-center"
                     style={{ width: containerSize, height: containerSize }}
                 >
-                    {/* Faint ring */}
+                    {/* Faint orbit ring */}
                     <div
                         className="absolute rounded-full"
                         style={{
                             width: containerRadius * 2,
                             height: containerRadius * 2,
-                            border: "1px solid rgba(255,107,53,0.12)",
-                            boxShadow: "0 0 60px rgba(255,107,53,0.06)",
+                            border: "1px solid rgba(255,107,53,0.10)",
+                            boxShadow: "0 0 80px rgba(6,182,212,0.05), 0 0 40px rgba(255,107,53,0.06)",
                         }}
                     />
 
@@ -127,62 +127,60 @@ export default function OAPOrbitingCarousel() {
                             className="z-20 flex flex-col items-center"
                             style={{ width: 320 }}
                         >
-                            {/* Portrait — no circle, just a tall card with gradient fade */}
+                            {/* Gradient border wrapper — orange top → cyan bottom */}
                             <div
-                                className="relative overflow-hidden"
                                 style={{
-                                    width: 280,
-                                    height: 380,
-                                    borderRadius: 28,
+                                    padding: 2,
+                                    borderRadius: 30,
+                                    background: "linear-gradient(160deg, #FF6B35 0%, #FF8E5E 30%, #06b6d4 70%, #0ea5e9 100%)",
+                                    boxShadow: "0 0 50px rgba(255,107,53,0.25), 0 0 80px rgba(6,182,212,0.15)",
                                 }}
                             >
-                                <img
-                                    src={oaps[activeIndex].image}
-                                    alt={oaps[activeIndex].name}
-                                    onError={safeImage}
-                                    className="w-full h-full object-cover object-top"
-                                    style={{ filter: "saturate(1.15) contrast(1.05)" }}
-                                />
-                                {/* Bottom fade to black */}
                                 <div
-                                    className="absolute inset-0"
-                                    style={{
-                                        background:
-                                            "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.85) 100%)",
-                                    }}
-                                />
-                                {/* Orange glow ring along border */}
-                                <div
-                                    className="absolute inset-0 rounded-[28px] pointer-events-none"
-                                    style={{
-                                        boxShadow:
-                                            "inset 0 0 0 2px rgba(255,107,53,0.5), 0 0 60px rgba(255,107,53,0.3)",
-                                    }}
-                                />
-                                {/* Name overlay at bottom */}
-                                <div className="absolute bottom-0 left-0 right-0 p-6">
-                                    <motion.h3
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.12 }}
-                                        className="text-3xl font-black text-white tracking-tight leading-none"
-                                    >
-                                        {oaps[activeIndex].name}
-                                    </motion.h3>
-                                    <motion.p
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.2 }}
-                                        className="text-[#FF6B35] text-sm font-semibold mt-1 tracking-wide uppercase"
-                                    >
-                                        On-Air Personality
-                                    </motion.p>
+                                    className="relative overflow-hidden"
+                                    style={{ width: 280, height: 380, borderRadius: 28 }}
+                                >
+                                    <img
+                                        src={oaps[activeIndex].image}
+                                        alt={oaps[activeIndex].name}
+                                        onError={safeImage}
+                                        className="w-full h-full object-cover object-top"
+                                        style={{ filter: "saturate(1.2) contrast(1.06)" }}
+                                    />
+                                    {/* Bottom gradient fade */}
+                                    <div
+                                        className="absolute inset-0"
+                                        style={{
+                                            background:
+                                                "linear-gradient(to bottom, transparent 35%, rgba(0,0,0,0.92) 100%)",
+                                        }}
+                                    />
+                                    {/* Name overlay */}
+                                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                                        <motion.h3
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.12 }}
+                                            className="text-3xl font-black text-white tracking-tight leading-none"
+                                        >
+                                            {oaps[activeIndex].name}
+                                        </motion.h3>
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.2 }}
+                                            className="text-sm font-semibold mt-1 tracking-wide uppercase"
+                                            style={{ color: "#FF6B35" }}
+                                        >
+                                            On-Air Personality
+                                        </motion.p>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
                     </AnimatePresence>
 
-                    {/* ---- ORBITING THUMBNAILS ---- */}
+                    {/* ---- ORBITING THUMBNAILS — all 7 always visible ---- */}
                     {oaps.map((oap, i) => {
                         const rotation = getRotation(i);
                         const isActive = i === activeIndex;
@@ -197,7 +195,7 @@ export default function OAPOrbitingCarousel() {
                                     type: "spring",
                                     stiffness: 130,
                                     damping: 22,
-                                    delay: isActive ? 0 : Math.abs(i - activeIndex) * 0.04,
+                                    delay: Math.abs(i - activeIndex) * 0.04,
                                 }}
                                 style={{
                                     width: profileSize,
@@ -206,7 +204,7 @@ export default function OAPOrbitingCarousel() {
                                     top: `calc(50% - ${profileSize / 2}px)`,
                                     left: `calc(50% - ${profileSize / 2}px)`,
                                     zIndex: isActive ? 5 : 10,
-                                    pointerEvents: isActive ? "none" : "auto",
+                                    cursor: isActive ? "default" : "pointer",
                                 }}
                             >
                                 {/* Counter-rotate to keep image upright */}
@@ -215,41 +213,51 @@ export default function OAPOrbitingCarousel() {
                                     transition={{ type: "spring", stiffness: 130, damping: 22 }}
                                     className="w-full h-full"
                                 >
+                                    {/* Gradient border wrapper for every thumbnail */}
                                     <motion.div
-                                        onClick={() => handleProfileClick(i)}
-                                        whileHover={{ scale: 1.2 }}
-                                        whileTap={{ scale: 0.92 }}
-                                        className="w-full h-full cursor-pointer overflow-hidden"
+                                        whileHover={isActive ? {} : { scale: 1.18 }}
+                                        whileTap={isActive ? {} : { scale: 0.92 }}
+                                        onClick={() => !isActive && handleProfileClick(i)}
                                         style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            padding: isActive ? 2 : 1.5,
                                             borderRadius: 16,
-                                            border: isActive
-                                                ? "2.5px solid rgba(255,107,53,0.8)"
-                                                : "2px solid rgba(255,255,255,0.12)",
+                                            background: isActive
+                                                ? "linear-gradient(135deg, #FF6B35 0%, #06b6d4 100%)"
+                                                : "linear-gradient(135deg, rgba(255,107,53,0.5) 0%, rgba(6,182,212,0.4) 100%)",
                                             boxShadow: isActive
-                                                ? "0 0 20px rgba(255,107,53,0.45)"
-                                                : "0 2px 12px rgba(0,0,0,0.5)",
-                                            opacity: isActive ? 0 : 1,
-                                            transition: "opacity 0.3s",
+                                                ? "0 0 24px rgba(255,107,53,0.4), 0 0 40px rgba(6,182,212,0.2)"
+                                                : "0 2px 14px rgba(0,0,0,0.5)",
                                         }}
                                     >
-                                        <img
-                                            src={oap.image}
-                                            alt={oap.name}
-                                            onError={safeImage}
-                                            className="w-full h-full object-cover object-top"
-                                            style={{ filter: "saturate(0.85) brightness(0.75)" }}
-                                        />
-                                        {/* Name tooltip shown on hover via CSS trick */}
                                         <div
-                                            className="absolute inset-0 flex items-end justify-center pb-1"
-                                            style={{
-                                                background:
-                                                    "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.7) 100%)",
-                                            }}
+                                            className="w-full h-full overflow-hidden relative"
+                                            style={{ borderRadius: 14 }}
                                         >
-                                            <span className="text-white text-[9px] font-semibold tracking-wide opacity-80">
-                                                {oap.name}
-                                            </span>
+                                            <img
+                                                src={oap.image}
+                                                alt={oap.name}
+                                                onError={safeImage}
+                                                className="w-full h-full object-cover object-top"
+                                                style={{
+                                                    filter: isActive
+                                                        ? "saturate(1.1) brightness(0.85)"
+                                                        : "saturate(0.8) brightness(0.65)",
+                                                    transition: "filter 0.3s",
+                                                }}
+                                            />
+                                            {/* Name label */}
+                                            <div
+                                                className="absolute inset-0 flex items-end justify-center pb-1"
+                                                style={{
+                                                    background: "linear-gradient(to bottom, transparent 45%, rgba(0,0,0,0.75) 100%)",
+                                                }}
+                                            >
+                                                <span className="text-white text-[9px] font-semibold tracking-wide">
+                                                    {oap.name}
+                                                </span>
+                                            </div>
                                         </div>
                                     </motion.div>
                                 </motion.div>
