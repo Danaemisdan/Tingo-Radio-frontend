@@ -41,43 +41,42 @@ export default function OAPOrbitingCarousel() {
     return (
         <section
             className="relative w-full overflow-hidden"
-            style={{
-                /* Rich deep gradient — not just black */
-                background:
-                    "radial-gradient(ellipse 100% 90% at 50% 50%, #1a0a00 0%, #0d0500 40%, #000000 100%)",
-                paddingTop: "6rem",
-                paddingBottom: "5rem",
-            }}
+            style={{ background: "#000", paddingTop: "6rem", paddingBottom: "5rem" }}
         >
-            {/* ── Ambient glow layers ── */}
+            {/* ── Animated flowing gradient background ── */}
             <div className="pointer-events-none absolute inset-0 z-0">
-                {/* Large warm centre bloom */}
-                <div
+                {/* Animated warm blob — drifts left ↔ right */}
+                <motion.div
                     className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    animate={{
+                        x: ["-15%", "15%", "-15%"],
+                        y: ["-10%", "10%", "-10%"],
+                        scale: [1, 1.12, 1],
+                    }}
+                    transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
                     style={{
-                        width: 900,
-                        height: 900,
+                        width: 1000,
+                        height: 800,
                         borderRadius: "50%",
                         background:
-                            "radial-gradient(ellipse, rgba(255,107,53,0.14) 0%, transparent 70%)",
+                            "radial-gradient(ellipse, rgba(255,107,53,0.22) 0%, rgba(255,70,20,0.08) 50%, transparent 75%)",
                     }}
                 />
-                {/* Cool blue left edge */}
-                <div
-                    className="absolute -left-40 top-0 h-full"
-                    style={{
-                        width: 600,
-                        background:
-                            "radial-gradient(ellipse 80% 80% at 0% 50%, rgba(6,182,212,0.09) 0%, transparent 70%)",
+                {/* Secondary smaller blob — counter-drifts */}
+                <motion.div
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                    animate={{
+                        x: ["20%", "-20%", "20%"],
+                        y: ["10%", "-10%", "10%"],
+                        scale: [1.1, 0.9, 1.1],
                     }}
-                />
-                {/* Cool blue right edge */}
-                <div
-                    className="absolute -right-40 top-0 h-full"
+                    transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
                     style={{
                         width: 600,
+                        height: 600,
+                        borderRadius: "50%",
                         background:
-                            "radial-gradient(ellipse 80% 80% at 100% 50%, rgba(14,165,233,0.08) 0%, transparent 70%)",
+                            "radial-gradient(ellipse, rgba(255,140,50,0.14) 0%, transparent 70%)",
                     }}
                 />
                 {/* Top-to-bottom black fade */}
@@ -85,7 +84,7 @@ export default function OAPOrbitingCarousel() {
                     className="absolute inset-0"
                     style={{
                         background:
-                            "linear-gradient(to bottom, #000 0%, transparent 15%, transparent 85%, #000 100%)",
+                            "linear-gradient(to bottom, #000 0%, transparent 18%, transparent 82%, #000 100%)",
                     }}
                 />
             </div>
@@ -99,22 +98,14 @@ export default function OAPOrbitingCarousel() {
                     transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
                     className="mb-16 text-center"
                 >
-                    {/* Eyebrow with flanking lines */}
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                        <div
-                            className="h-px w-16"
-                            style={{ background: "linear-gradient(to right, transparent, #FF6B35)" }}
-                        />
+                    {/* Eyebrow — no flanking lines */}
+                    <div className="flex items-center justify-center mb-4">
                         <span
                             className="text-[10px] tracking-[0.4em] uppercase font-semibold"
                             style={{ color: "#FF6B35" }}
                         >
                             Meet the Voices
                         </span>
-                        <div
-                            className="h-px w-16"
-                            style={{ background: "linear-gradient(to left, transparent, #06b6d4)" }}
-                        />
                     </div>
                     <h2
                         className="text-5xl md:text-6xl font-black tracking-tighter"
@@ -141,7 +132,7 @@ export default function OAPOrbitingCarousel() {
                             height: RADIUS * 2,
                             border: "1px solid rgba(255,107,53,0.08)",
                             boxShadow:
-                                "0 0 0 1px rgba(6,182,212,0.06), 0 0 100px rgba(255,107,53,0.07) inset",
+                                "0 0 0 1px rgba(255,107,53,0.12), 0 0 100px rgba(255,107,53,0.1) inset",
                         }}
                     />
 
@@ -161,9 +152,9 @@ export default function OAPOrbitingCarousel() {
                                     padding: 2.5,
                                     borderRadius: 32,
                                     background:
-                                        "linear-gradient(160deg, #FF6B35 0%, #ffb347 25%, #06b6d4 65%, #0ea5e9 100%)",
+                                        "linear-gradient(160deg, #FF6B35 0%, #ff8533 35%, #ff4500 70%, #FF6B35 100%)",
                                     boxShadow:
-                                        "0 0 60px rgba(255,107,53,0.3), 0 0 120px rgba(6,182,212,0.15), 0 30px 80px rgba(0,0,0,0.7)",
+                                        "0 0 60px rgba(255,107,53,0.3), 0 0 120px rgba(255,107,53,0.15), 0 30px 80px rgba(0,0,0,0.7)",
                                 }}
                             >
                                 <div
@@ -212,7 +203,7 @@ export default function OAPOrbitingCarousel() {
                                             className="mb-3 h-px w-10"
                                             style={{
                                                 background:
-                                                    "linear-gradient(to right, #FF6B35, #06b6d4)",
+                                                    "linear-gradient(to right, #FF6B35, #ff8533)",
                                             }}
                                         />
                                         <motion.h3
@@ -228,7 +219,7 @@ export default function OAPOrbitingCarousel() {
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.18 }}
                                             className="mt-1 text-xs font-semibold tracking-[0.2em] uppercase"
-                                            style={{ color: "#06b6d4" }}
+                                            style={{ color: "rgba(255,167,100,0.85)" }}
                                         >
                                             Tingo AI Radio
                                         </motion.p>
@@ -280,10 +271,10 @@ export default function OAPOrbitingCarousel() {
                                             padding: isActive ? 2.5 : 2,
                                             borderRadius: "50%",
                                             background: isActive
-                                                ? "linear-gradient(135deg, #FF6B35 0%, #06b6d4 100%)"
-                                                : "linear-gradient(135deg, rgba(255,107,53,0.35) 0%, rgba(6,182,212,0.3) 100%)",
+                                                ? "linear-gradient(135deg, #FF6B35 0%, #ff4500 100%)"
+                                                : "linear-gradient(135deg, rgba(255,107,53,0.4) 0%, rgba(200,60,0,0.3) 100%)",
                                             boxShadow: isActive
-                                                ? "0 0 22px rgba(255,107,53,0.5), 0 0 40px rgba(6,182,212,0.2)"
+                                                ? "0 0 24px rgba(255,107,53,0.6), 0 0 50px rgba(255,80,0,0.2)"
                                                 : "0 4px 16px rgba(0,0,0,0.6)",
                                             cursor: isActive ? "default" : "pointer",
                                         }}
