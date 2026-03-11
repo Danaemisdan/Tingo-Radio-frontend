@@ -124,15 +124,15 @@ export default function OAPOrbitingCarousel() {
                     className="relative flex items-center justify-center"
                     style={{ width: total, height: total }}
                 >
-                    {/* Subtle orbit ring */}
+                    {/* Blurred glowing orbit ring instead of sharp border */}
                     <div
                         className="pointer-events-none absolute rounded-full"
                         style={{
                             width: RADIUS * 2,
                             height: RADIUS * 2,
-                            border: "1px solid rgba(255,107,53,0.08)",
-                            boxShadow:
-                                "0 0 0 1px rgba(255,107,53,0.12), 0 0 100px rgba(255,107,53,0.1) inset",
+                            background: "transparent",
+                            boxShadow: "0 0 120px rgba(255,107,53,0.1) inset, 0 0 60px rgba(255,70,0,0.05)",
+                            filter: "blur(4px)",
                         }}
                     />
 
@@ -178,23 +178,7 @@ export default function OAPOrbitingCarousel() {
                                         }}
                                     />
 
-                                    {/* Live badge */}
-                                    <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-full px-3 py-1"
-                                        style={{
-                                            background: "rgba(0,0,0,0.55)",
-                                            backdropFilter: "blur(8px)",
-                                            border: "1px solid rgba(255,107,53,0.4)",
-                                        }}
-                                    >
-                                        <motion.span
-                                            animate={{ opacity: [1, 0.2, 1] }}
-                                            transition={{ duration: 1.4, repeat: Infinity }}
-                                            className="block h-1.5 w-1.5 rounded-full bg-[#FF6B35]"
-                                        />
-                                        <span className="text-[10px] font-semibold tracking-widest text-white uppercase">
-                                            On Air
-                                        </span>
-                                    </div>
+
 
                                     {/* Name area */}
                                     <div className="absolute bottom-0 left-0 right-0 p-6">
