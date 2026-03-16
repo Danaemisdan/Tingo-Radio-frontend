@@ -111,7 +111,7 @@ const SmoothScrollHero: React.FC<SmoothScrollHeroProps> = ({
                         alt="Tingo Logo"
                         width={800}
                         height={200}
-                        className="w-[70vw] md:w-[50vw] max-w-[600px] drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]"
+                        className="w-[70vw] md:w-[50vw] max-w-[600px] h-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]"
                         priority
                     />
                 </motion.div>

@@ -18,7 +18,7 @@ function ScrollHighlightText({ text }: { text: React.ReactNode }) {
     const words = text.split(" ");
 
     return (
-        <p ref={containerRef} className="text-base md:text-lg font-medium leading-relaxed text-transparent bg-clip-text flex flex-wrap gap-x-[0.25em]">
+        <p ref={containerRef} className="relative text-base md:text-lg font-medium leading-relaxed text-transparent bg-clip-text flex flex-wrap gap-x-[0.25em]">
             {words.map((word, i) => {
                 const start = i / words.length;
                 const end = start + (1 / words.length);
@@ -199,29 +199,37 @@ function AlbumDiscSwapper() {
         let isMounted = true;
 
         const sequence = async () => {
-            // Give it an initial delay on mount before starting the loop
-            await new Promise(r => setTimeout(r, 1000));
+            try {
+                // Give it an initial delay on mount before starting the loop
+                await new Promise(r => setTimeout(r, 1000));
 
-            while (isMounted) {
-                // 1. Force the position to be perfectly zeroed and wait for the duration. The disc GUARANTEES sitting perfectly still (except for spinning).
-                await controls.start({ x: 0, y: 0, filter: "blur(0px)", scale: 1, opacity: 1, transition: { duration: 0.1 } });
-                await new Promise(r => setTimeout(r, 2500)); // Sleep exactly 2.5 seconds while sitting in the center
+                while (isMounted) {
+                    // 1. Force the position to be perfectly zeroed and wait for the duration. The disc GUARANTEES sitting perfectly still (except for spinning).
+                    await controls.start({ x: 0, y: 0, filter: "blur(0px)", scale: 1, opacity: 1, transition: { duration: 0.1 } });
+                    await new Promise(r => setTimeout(r, 2500)); // Sleep exactly 2.5 seconds while sitting in the center
 
-                // 2. Slide diagonally out. We fly VERY far away to ensure it is completely out of the viewport entirely.
-                await controls.start({ x: 800, y: -800, filter: "blur(20px)", opacity: 0, transition: { duration: 0.7, ease: "easeIn" } });
+                    if (!isMounted) break;
 
-                // 3. SECURE SWAP: Change the image exactly while it's fully hidden and faded out
-                if (isMounted) {
-                    setActiveIndex((prev) => (prev + 1) % albums.length);
+                    // 2. Slide diagonally out. We fly VERY far away to ensure it is completely out of the viewport entirely.
+                    await controls.start({ x: 800, y: -800, filter: "blur(20px)", opacity: 0, transition: { duration: 0.7, ease: "easeIn" } });
+
+                    // 3. SECURE SWAP: Change the image exactly while it's fully hidden and faded out
+                    if (isMounted) {
+                        setActiveIndex((prev) => (prev + 1) % albums.length);
+                    }
+
+                    // Sleep entirely out of frame so the user realizes the next disc is taking a second to load physically
+                    await new Promise(r => setTimeout(r, 300));
+
+                    if (!isMounted) break;
+
+                    // 4. Slide back from the top right. We use easeOut so it decelerates smoothly into the center.
+                    // It starts invisible and blurred in the top right, and swoops in exactly to the center stopping gracefully.
+                    await controls.set({ x: 800, y: -800, filter: "blur(20px)", opacity: 0 }); // Hard reset position instantly while hidden
+                    await controls.start({ x: 0, y: 0, filter: "blur(0px)", opacity: 1, transition: { duration: 0.9, ease: "easeOut" } });
                 }
-
-                // Sleep entirely out of frame so the user realizes the next disc is taking a second to load physically
-                await new Promise(r => setTimeout(r, 300));
-
-                // 4. Slide back from the top right. We use easeOut so it decelerates smoothly into the center.
-                // It starts invisible and blurred in the top right, and swoops in exactly to the center stopping gracefully.
-                await controls.set({ x: 800, y: -800, filter: "blur(20px)", opacity: 0 }); // Hard reset position instantly while hidden
-                await controls.start({ x: 0, y: 0, filter: "blur(0px)", opacity: 1, transition: { duration: 0.9, ease: "easeOut" } });
+            } catch (error) {
+                // Swallowing framer motion unmount aborts
             }
         };
 
