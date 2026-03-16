@@ -13,7 +13,8 @@ export default function AdminDashboard() {
         setStatus("Submitting request...");
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/generate_show`, {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+            const response = await fetch(`${apiBase}/api/generate_show`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

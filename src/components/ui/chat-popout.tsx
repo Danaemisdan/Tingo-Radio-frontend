@@ -16,7 +16,8 @@ export function ChatPopout() {
         try {
             const formData = new FormData();
             formData.append("text", message);
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audience/message`, { 
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+            await fetch(`${apiBase}/api/audience/message`, { 
                 method: "POST", 
                 body: formData 
             });

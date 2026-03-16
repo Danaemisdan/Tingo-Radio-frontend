@@ -40,7 +40,8 @@ export const MusicToggleButton = ({ onPlayChange }: { onPlayChange?: (playing: b
     if (audioRef.current) {
       if (isPlaying) {
         // Appending timestamp to bypass browser caching for live streams
-        audioRef.current.src = `${process.env.NEXT_PUBLIC_API_URL}/api/stream?t=${Date.now()}`;
+        const streamBase = process.env.NEXT_PUBLIC_API_URL || `http://localhost:8000`;
+        audioRef.current.src = `${streamBase}/stream?t=${Date.now()}`;
         audioRef.current.play().catch(console.error);
       } else {
         audioRef.current.pause();
