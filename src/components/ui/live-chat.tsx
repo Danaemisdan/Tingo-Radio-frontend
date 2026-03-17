@@ -365,9 +365,9 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
                 <Zap className="w-4 h-4" />
               </button>
               <button
-                onClick={sendMessage}
+                onPointerDown={e => { e.preventDefault(); sendMessage(); }}
                 disabled={!input.trim() || sending}
-                className="text-white/30 hover:text-orange-400 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+                className="text-white/30 hover:text-orange-400 disabled:opacity-20 transition-colors shrink-0 touch-manipulation"
               >
                 <Send className="w-4 h-4" />
               </button>
