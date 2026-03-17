@@ -5,20 +5,21 @@ import HeroWave from '@/components/ui/dynamic-wave-canvas-background';
 import { Heart, Share2, ListPlus } from 'lucide-react';
 import { MicroExpander } from '@/components/ui/micro-expander';
 import { MusicToggleButton } from '@/components/ui/music-toggle-btn';
-import { ChatPopout } from '@/components/ui/chat-popout';
 import { CallPopout } from '@/components/ui/call-popout';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { MinimalVolumeBar } from '@/components/ui/minimal-volume-bar';
+import { LiveChat } from '@/components/ui/live-chat';
 
 export default function RadioPage() {
     const [isPlaying, setIsPlaying] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [volume, setVolume] = useState(50); // Optionally fed to audio later
+    const [volume, setVolume] = useState(50);
 
     return (
         <main className="relative min-h-screen w-full bg-black text-white overflow-hidden selection:bg-white/30">
-            {/* Absolute positioned Tingo Logo in Top Left */}
+
+            {/* Tingo Logo — top left */}
             <div className="absolute top-8 left-8 z-50">
                 <Image
                     src="/tingo_logo_minimal.svg"
@@ -29,7 +30,7 @@ export default function RadioPage() {
                 />
             </div>
 
-            {/* Seamless Fade-In From Black */}
+            {/* Fade-in from black */}
             <motion.div
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 0 }}
@@ -37,15 +38,16 @@ export default function RadioPage() {
                 className="fixed inset-0 z-[9999] bg-black pointer-events-none"
             />
 
-            {/* Dynamic Wave Canvas Background (Absolute Bottom) */}
+            {/* Wave background */}
             <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
                 <HeroWave />
             </div>
 
-            {/* Huge Aurora Synth Background when playing */}
+            {/* Aurora when playing */}
             <AnimatePresence>
                 {isPlaying && (
                     <motion.div
+                        key="aurora"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -71,20 +73,24 @@ export default function RadioPage() {
                 )}
             </AnimatePresence>
 
-            {/* Bottom Controls */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
-
-                {/* Pop up Program Card when playing */}
+            {/* ── Main Player Controls — centered, shifts left when chat is open ── */}
+            <motion.div
+                animate={{ x: isPlaying ? -160 : 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 30 }}
+                className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center"
+            >
+                {/* Program card pop-up */}
                 <div className="h-16 flex items-end justify-center pointer-events-auto relative">
                     <AnimatePresence>
                         {isPlaying && (
                             <motion.div
+                                key="program-card"
                                 initial={{ opacity: 0, scale: 0, y: 50, filter: "blur(20px)" }}
                                 animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
                                 exit={{ opacity: 0, scale: 0, y: 50, filter: "blur(20px)" }}
                                 transition={{ type: "spring", stiffness: 350, damping: 30 }}
                                 style={{ transformOrigin: "bottom center" }}
-                                className="absolute bottom-full mb-2 w-[350px] max-h-[60vh] overflow-y-auto rounded-[2rem] bg-zinc-950/95 backdrop-blur-3xl border border-white/10 p-5 shadow-[0_0_50px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col gap-4 z-[100]"
+                                className="absolute bottom-full mb-2 w-[350px] rounded-[2rem] bg-zinc-950/95 backdrop-blur-3xl border border-white/10 p-5 shadow-[0_0_50px_rgba(0,0,0,0.8)] pointer-events-auto flex flex-col gap-4 z-[100]"
                             >
                                 <div className="w-full aspect-square rounded-[1.25rem] overflow-hidden bg-black shrink-0 relative shadow-inner ring-1 ring-white/10">
                                     <Image src="/LLAMA.png" fill className="object-cover" alt="LLAMA" />
@@ -103,7 +109,7 @@ export default function RadioPage() {
                     </AnimatePresence>
                 </div>
 
-                {/* Restored Interaction Buttons */}
+                {/* Action buttons */}
                 {isPlaying && (
                     <motion.div
                         initial={{ opacity: 0, y: 20, scale: 0.9 }}
@@ -123,11 +129,10 @@ export default function RadioPage() {
                         {isPlaying ? "ON AIR" : "Click here to play"}
                     </span>
 
-                    {/* Interactive Play Bar */}
+                    {/* Play bar row */}
                     <div className="flex items-center justify-center gap-6 w-full max-w-lg mb-8 pointer-events-none">
-                        
-                        {/* Left: Chat Popout */}
-                        {isPlaying && <ChatPopout />}
+                        {/* Spacer (removed old single chat popout) */}
+                        <div className="w-12 h-12" />
 
                         {/* Center: Music Toggle */}
                         <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-2xl pointer-events-auto flex items-center justify-center transition-colors hover:border-white/30 cursor-pointer shrink-0 z-10">
@@ -135,15 +140,38 @@ export default function RadioPage() {
                         </div>
 
                         {/* Right: Call Popout */}
-                        {isPlaying && <CallPopout />}
+                        {isPlaying ? <CallPopout /> : <div className="w-12 h-12" />}
                     </div>
 
-                    {/* Minimalist Volume Bar */}
+                    {/* Volume */}
                     <div className="pointer-events-auto mb-6">
                         <MinimalVolumeBar onVolumeChange={setVolume} />
                     </div>
                 </div>
-            </div>
+            </motion.div>
+
+            {/* ── Twitch-Style Live Chat Sidebar ── */}
+            <AnimatePresence>
+                {isPlaying && (
+                    <motion.aside
+                        key="chat-sidebar"
+                        initial={{ x: 320, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 320, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                        className="fixed top-0 right-0 h-full w-80 z-40 flex flex-col"
+                        style={{
+                            background: "linear-gradient(180deg, rgba(5,5,5,0.88) 0%, rgba(10,10,10,0.94) 100%)",
+                            backdropFilter: "blur(24px)",
+                            WebkitBackdropFilter: "blur(24px)",
+                            borderLeft: "1px solid rgba(255,255,255,0.07)",
+                        }}
+                    >
+                        <LiveChat visible={true} />
+                    </motion.aside>
+                )}
+            </AnimatePresence>
+
         </main>
     );
 }
