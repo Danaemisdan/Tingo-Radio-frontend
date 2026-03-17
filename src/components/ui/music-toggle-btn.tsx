@@ -18,7 +18,7 @@ const Skiper25 = () => {
 
 export { Skiper25 };
 
-export const MusicToggleButton = ({ onPlayChange }: { onPlayChange?: (playing: boolean) => void }) => {
+export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (playing: boolean) => void; volume?: number }) => {
   const bars = 5;
 
   const getRandomHeights = () => {
@@ -63,6 +63,13 @@ export const MusicToggleButton = ({ onPlayChange }: { onPlayChange?: (playing: b
     }
     setHeights(Array(bars).fill(0.1));
   }, [isPlaying]);
+
+  // Apply volume prop to the audio element whenever it changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = Math.max(0, Math.min(1, (volume ?? 50) / 100));
+    }
+  }, [volume]);
 
   const handleClick = () => {
     if (isPlaying) {
