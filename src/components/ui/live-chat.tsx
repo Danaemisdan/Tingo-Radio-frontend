@@ -109,24 +109,45 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   // In production on Vercel, NEXT_PUBLIC_API_URL must be set to the Cloudflare tunnel URL.
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-  const poll = useCallback(async () => {
+  const failCountRef = useRef(0);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleNextPoll = useCallback((delay: number) => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    pollTimerRef.current = setTimeout(() => {
+      doPoll();
+    }, delay);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doPoll = useCallback(async () => {
     try {
       const res = await fetch(`${apiBase}/api/chat/messages?since=${lastTsRef.current}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.messages?.length > 0) {
         setMessages(prev => [...prev, ...data.messages].slice(-200));
         lastTsRef.current = data.server_time;
       }
-    } catch { /* ignore */ }
-  }, [apiBase]);
+      // Success → reset backoff
+      failCountRef.current = 0;
+      scheduleNextPoll(2000);
+    } catch {
+      // Failure → exponential backoff: 4s, 8s, 16s, capped at 30s
+      failCountRef.current = Math.min(failCountRef.current + 1, 4);
+      const delay = Math.min(2000 * Math.pow(2, failCountRef.current), 30_000);
+      scheduleNextPoll(delay);
+    }
+  }, [apiBase, scheduleNextPoll]);
 
   useEffect(() => {
-    if (!visible) return;
-    poll();
-    const iv = setInterval(poll, 2000);
-    return () => clearInterval(iv);
-  }, [visible, poll]);
+    if (!visible) {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      return;
+    }
+    failCountRef.current = 0;
+    doPoll();
+    return () => { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); };
+  }, [visible, doPoll]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

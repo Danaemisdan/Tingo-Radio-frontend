@@ -167,3 +167,51 @@
 nextjs-portal {
   display: none !important;
 }
+
+/* ─── Mobile Optimizations ────────────────────────────────────────────────── */
+
+/* Ensure the viewport respects iPhone notch / dynamic island */
+html {
+  /* Allows env(safe-area-inset-*) to work correctly */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Remove the blue tap highlight on mobile — makes it feel more native */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth momentum scrolling for iOS (chat panel, etc.) */
+.overflow-y-auto, .overflow-y-scroll, [class*="overflow-y"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbars on mobile viewports (they show on touch devices) */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  * {
+    scrollbar-width: none;
+  }
+}
+
+/* Respect user preference for reduced motion (accessibility + battery) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Prevent iOS double-tap zoom on buttons and interactive elements */
+button, [role="button"], input[type="range"] {
+  touch-action: manipulation;
+}
+
+/* Fix font-size inflation on landscape rotate (iOS) */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

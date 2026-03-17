@@ -32,7 +32,8 @@ export default function RadioPage() {
   }, []);
 
   return (
-    <main className="relative min-h-screen w-full bg-black text-white overflow-hidden selection:bg-white/30">
+    // On mobile, we disable GPU-heavy aurora effects automatically via CSS media queries in the classnames
+    <main className="relative min-h-screen min-h-dvh w-full bg-black text-white overflow-hidden selection:bg-white/30">
 
       {/* Tingo Logo — top left */}
       <div className="absolute top-8 left-8 z-50">
@@ -54,16 +55,20 @@ export default function RadioPage() {
         {isPlaying && (
           <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            {/* Aurora orbs: animated on desktop only. On mobile, static blobs to save GPU */}
             <motion.div
-              className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[150px] rounded-full mix-blend-screen opacity-40"
+              className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[100px] md:blur-[150px] rounded-full mix-blend-screen opacity-30 md:opacity-40"
               animate={{ scale: [1, 1.2, 1], x: ['0%', '10%', '0%'], y: ['0%', '-10%', '0%'] }}
-              transition={{ duration: 15, repeat: Infinity }} />
+              transition={{ duration: 15, repeat: Infinity }}
+              style={{ willChange: 'auto' }} />
             <motion.div
-              className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[150px] rounded-full mix-blend-screen opacity-30"
+              className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[100px] md:blur-[150px] rounded-full mix-blend-screen opacity-20 md:opacity-30"
               animate={{ scale: [1, 1.3, 1], x: ['0%', '-15%', '0%'], y: ['0%', '10%', '0%'] }}
-              transition={{ duration: 18, repeat: Infinity }} />
+              transition={{ duration: 18, repeat: Infinity }}
+              style={{ willChange: 'auto' }} />
+            {/* Third orb hidden on mobile — too heavy */}
             <motion.div
-              className="absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[120px] rounded-full mix-blend-screen opacity-30"
+              className="hidden md:block absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[120px] rounded-full mix-blend-screen opacity-30"
               animate={{ scale: [1, 1.4, 1], x: ['0%', '20%', '0%'], y: ['0%', '20%', '0%'] }}
               transition={{ duration: 20, repeat: Infinity }} />
           </motion.div>
@@ -85,9 +90,10 @@ export default function RadioPage() {
        * We use pure CSS transition — NOT framer-motion x — so it doesn't
        * conflict with the CSS translate(-50%) centering trick.
        */}
+      {/* pb-safe ensures iOS home indicator doesn't overlap the player */}
       <div
         className={[
-          "absolute bottom-10 z-30 flex flex-col items-center",
+          "absolute bottom-0 z-30 flex flex-col items-center",
           "w-full px-4",
           // On desktop, shift left slightly when sidebar is open, stay centered on mobile
           isPlaying
@@ -95,6 +101,7 @@ export default function RadioPage() {
             : "left-1/2 -translate-x-1/2",
           "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
         ].join(" ")}
+        style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom, 0px))' }}
       >
         {/* Program card — hidden on mobile to keep it clean */}
         <div className="hidden sm:flex items-end justify-center pointer-events-auto relative w-full max-w-[320px] sm:max-w-[350px] min-h-[64px]">
@@ -125,14 +132,14 @@ export default function RadioPage() {
           </AnimatePresence>
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons — wider gap on mobile for touch targets */}
         <AnimatePresence>
           {isPlaying && (
             <motion.div key="actions"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="flex items-center justify-center gap-4 dark mb-4 pointer-events-auto z-20"
+              className="flex items-center justify-center gap-5 sm:gap-4 dark mb-4 pointer-events-auto z-20"
             >
               <MicroExpander icon={<Heart className="w-5 h-5" />} isActive={false} text="Like Track" />
               <MicroExpander icon={<ListPlus className="w-5 h-5" />} isActive={true} text="Save Set" />
@@ -152,8 +159,8 @@ export default function RadioPage() {
            * - On desktop: just the play button, centered
            * - On mobile: chat button pops out to the RIGHT with a genie spring animation
            */}
-          <div className="flex items-center justify-center gap-4 mb-8 pointer-events-none">
-            <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-2xl pointer-events-auto flex items-center justify-center hover:border-white/30 cursor-pointer shrink-0 z-10">
+          <div className="flex items-center justify-center gap-4 mb-4 sm:mb-8 pointer-events-none">
+            <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-2xl pointer-events-auto flex items-center justify-center hover:border-white/30 cursor-pointer shrink-0 z-10 touch-manipulation">
               <MusicToggleButton onPlayChange={setIsPlaying} volume={volume} />
             </div>
 
@@ -167,7 +174,7 @@ export default function RadioPage() {
                   exit={{ opacity: 0, scale: 0, x: -30 }}
                   transition={{ type: "spring", stiffness: 400, damping: 22, delay: 0.1 }}
                   onClick={() => setIsMobileChatOpen(p => !p)}
-                  className="md:hidden w-12 h-12 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto shrink-0"
+                  className="md:hidden w-14 h-14 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto shrink-0 touch-manipulation"
                   style={{
                     background: isMobileChatOpen ? "rgba(251,146,60,0.9)" : "rgba(30,30,38,0.85)",
                     border: "1px solid rgba(251,146,60,0.45)",
@@ -177,7 +184,7 @@ export default function RadioPage() {
                   }}
                   aria-label="Open chat"
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
                   </svg>
                 </motion.button>
@@ -185,8 +192,8 @@ export default function RadioPage() {
             </AnimatePresence>
           </div>
 
-          {/* Volume — always centered under play button */}
-          <div className="pointer-events-auto mb-6 w-48">
+          {/* Volume — always centered under play button, wider on mobile for touch */}
+          <div className="pointer-events-auto mb-4 sm:mb-6 w-56 sm:w-48">
             <MinimalVolumeBar onVolumeChange={setVolume} />
           </div>
         </div>
@@ -221,7 +228,7 @@ export default function RadioPage() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
-            className="md:hidden fixed inset-x-0 bottom-0 top-20 z-[70] flex flex-col rounded-t-3xl overflow-hidden"
+            className="md:hidden fixed inset-x-0 bottom-0 top-16 z-[70] flex flex-col rounded-t-3xl overflow-hidden"
             style={{
               background: "linear-gradient(180deg, rgba(12,12,18,0.97) 0%, rgba(5,5,10,0.99) 100%)",
               backdropFilter: "blur(30px)",

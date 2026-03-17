@@ -19,6 +19,14 @@ export const metadata: Metadata = {
   description: "24/7 Autonomous AI-Driven Radio Station",
 };
 
+// viewport-fit=cover is required for env(safe-area-inset-*) to work on iPhone notch / Dynamic Island
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#000000",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
