@@ -76,34 +76,7 @@ export default function RadioPage() {
       {/* Super Chat Banner */}
       <SuperChatOverlay messages={superChats} />
 
-      {/* ── Mobile Chat Toggle Button ── */}
-      <AnimatePresence>
-        {isPlaying && (
-          <motion.button
-            key="chat-toggle"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            onClick={() => setIsMobileChatOpen(p => !p)}
-            className="md:hidden fixed bottom-8 right-6 z-[60] w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center cursor-pointer"
-            style={{
-              background: isMobileChatOpen
-                ? "rgba(251,146,60,0.95)"
-                : "rgba(15,15,22,0.88)",
-              border: "1px solid rgba(251,146,60,0.5)",
-              color: isMobileChatOpen ? "#fff" : "#fb923c",
-              backdropFilter: "blur(12px)",
-            }}
-            aria-label="Toggle chat"
-          >
-            {/* Filled Material chat bubble icon */}
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-            </svg>
-          </motion.button>
-        )}
-      </AnimatePresence>
+
 
       {/*
        * ── Main Player Container ──
@@ -174,10 +147,42 @@ export default function RadioPage() {
             {isPlaying ? "ON AIR" : "Click here to play"}
           </span>
 
-          <div className="flex items-center justify-center mb-8 pointer-events-none">
+          {/*
+           * Play button row:
+           * - On desktop: just the play button, centered
+           * - On mobile: chat button pops out to the RIGHT with a genie spring animation
+           */}
+          <div className="flex items-center justify-center gap-4 mb-8 pointer-events-none">
             <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-2xl pointer-events-auto flex items-center justify-center hover:border-white/30 cursor-pointer shrink-0 z-10">
               <MusicToggleButton onPlayChange={setIsPlaying} volume={volume} />
             </div>
+
+            {/* Chat button — genie pops out to right of play btn, mobile only */}
+            <AnimatePresence>
+              {isPlaying && (
+                <motion.button
+                  key="chat-btn-inline"
+                  initial={{ opacity: 0, scale: 0, x: -30 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0, x: -30 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 22, delay: 0.1 }}
+                  onClick={() => setIsMobileChatOpen(p => !p)}
+                  className="md:hidden w-12 h-12 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto shrink-0"
+                  style={{
+                    background: isMobileChatOpen ? "rgba(251,146,60,0.9)" : "rgba(30,30,38,0.85)",
+                    border: "1px solid rgba(251,146,60,0.45)",
+                    color: isMobileChatOpen ? "#fff" : "#fb923c",
+                    backdropFilter: "blur(14px)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+                  }}
+                  aria-label="Open chat"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                  </svg>
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Volume — always centered under play button */}
