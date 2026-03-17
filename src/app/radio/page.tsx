@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { MinimalVolumeBar } from '@/components/ui/minimal-volume-bar';
 import { LiveChat, FloatingEmojiOverlay, SuperChatOverlay, FloatingEmoji } from '@/components/ui/live-chat';
+import { cn } from '@/lib/utils';
 
 interface ChatMessage {
   user: string;
@@ -87,9 +88,9 @@ export default function RadioPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               onClick={() => setIsMobileChatOpen(p => !p)}
-              className="md:hidden fixed top-8 right-8 z-[60] bg-orange-500/20 border border-orange-500/50 text-orange-400 p-2.5 rounded-full backdrop-blur-md shadow-xl flex items-center justify-center"
+              className="md:hidden fixed top-8 right-8 z-[60] bg-orange-500/20 border border-orange-500/50 text-orange-400 p-3 rounded-full backdrop-blur-md shadow-xl flex items-center justify-center cursor-pointer hover:bg-orange-500/30 transition-colors"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
             </motion.button>
@@ -98,10 +99,12 @@ export default function RadioPage() {
 
         {/* ── Main Player ── */}
         <motion.div
-          animate={{ x: isPlaying ? "calc(-160px)" : 0 }}
+          animate={{ x: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center w-full max-w-[100vw] px-4 md:w-auto md:max-w-none md:px-0"
-          style={{ transform: "translateX(clamp(-160px, -160px, 0))" }}
+          className={cn(
+            "absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center w-full max-w-[100vw] px-4 md:w-auto md:max-w-none md:px-0 transition-transform duration-500",
+            isPlaying ? "md:-translate-x-[calc(50%+160px)]" : "md:-translate-x-1/2" // Only shift left on desktop
+          )}
         >
           {/* Program card pop-up */}
           <div className="h-16 flex items-end justify-center pointer-events-auto relative w-full max-w-[350px]">
@@ -192,7 +195,9 @@ export default function RadioPage() {
               {/* Mobile Overlay (below md) */}
               {isMobileChatOpen && (
                 <motion.aside key="chat-sidebar-mobile"
-                  initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+                  initial={{ y: "100%" }} 
+                  animate={{ y: 0 }} 
+                  exit={{ y: "100%" }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   className="md:hidden fixed inset-x-0 bottom-0 top-16 z-[70] flex flex-col rounded-t-3xl overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10"
                   style={{
