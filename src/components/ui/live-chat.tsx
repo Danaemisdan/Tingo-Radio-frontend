@@ -99,7 +99,12 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  // In production on Vercel, NEXT_PUBLIC_API_URL must be set to the Cloudflare tunnel URL.
+  // e.g. https://your-tunnel.trycloudflare.com
+  // If missing, the chat won't work and we show a clear error.
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+  const apiConfigured = !!(process.env.NEXT_PUBLIC_API_URL);
+
 
   const poll = useCallback(async () => {
     try {
