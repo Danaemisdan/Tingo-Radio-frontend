@@ -50,6 +50,8 @@ interface LiveChatProps {
   visible: boolean;
   isLive: boolean;
   onFloatingEmoji?: (fe: FloatingEmoji) => void;
+  onClose?: () => void;
+  isMobile?: boolean;
 }
 
 // ── Username Picker ───────────────────────────────────────────────────────────
@@ -85,7 +87,7 @@ function NamePicker({ onDone }: { onDone: (name: string) => void }) {
 }
 
 // ── Main Chat Component ───────────────────────────────────────────────────────
-export function LiveChat({ visible, isLive, onFloatingEmoji }: LiveChatProps) {
+export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }: LiveChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [username, setUsername] = useState("");
