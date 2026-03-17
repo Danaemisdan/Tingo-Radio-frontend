@@ -185,8 +185,12 @@ export function LiveChat({ visible, isLive, onFloatingEmoji }: LiveChatProps) {
           <div className="flex items-center justify-between px-4 py-3 shrink-0"
             style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_6px_#4ade80]" />
-              <span className="text-xs font-bold text-white/70 uppercase tracking-widest">Live Chat</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-70">
+                <circle cx="12" cy="12" r="3" fill="#fb923c"/>
+                <path d="M6.3 6.3a8 8 0 010 11.4M17.7 6.3a8 8 0 010 11.4" stroke="#fb923c" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M3 3a14 14 0 010 18M21 3a14 14 0 010 18" stroke="#fb923c" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+              </svg>
+              <span className="text-xs font-bold tracking-widest" style={{ color: "#fb923c", letterSpacing: "0.15em" }}>frequency</span>
             </div>
             {/* Call Button */}
             <button
