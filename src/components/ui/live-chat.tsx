@@ -90,8 +90,15 @@ function NamePicker({ onDone }: { onDone: (name: string) => void }) {
 export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }: LiveChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [username, setUsername] = useState("");
-  const [nameSet, setNameSet] = useState(false);
+  // Persist username in localStorage so we never ask again after first join
+  const [username, setUsername] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("tingo_chat_username") || "";
+  });
+  const [nameSet, setNameSet] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !!(localStorage.getItem("tingo_chat_username"));
+  });
   const [sending, setSending] = useState(false);
   const [superChatMode, setSuperChatMode] = useState(false);
   const [inCall, setInCall] = useState(false);
@@ -100,11 +107,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const inputRef = useRef<HTMLInputElement>(null);
 
   // In production on Vercel, NEXT_PUBLIC_API_URL must be set to the Cloudflare tunnel URL.
-  // e.g. https://your-tunnel.trycloudflare.com
-  // If missing, the chat won't work and we show a clear error.
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-  const apiConfigured = !!(process.env.NEXT_PUBLIC_API_URL);
-
 
   const poll = useCallback(async () => {
     try {
@@ -173,7 +176,11 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }}
             className="flex flex-col h-full"
           >
-            <NamePicker onDone={name => { setUsername(name); setNameSet(true); }} />
+            <NamePicker onDone={name => { 
+              localStorage.setItem("tingo_chat_username", name);
+              setUsername(name); 
+              setNameSet(true); 
+            }} />
           </motion.div>
         )}
       </AnimatePresence>

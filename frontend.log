@@ -14,6 +14,5 @@
 - Network:       http://192.168.31.16:3001
 
 ✓ Starting...
-✓ Ready in 1057ms
- GET / 200 in 1166ms (compile: 924ms, render: 243ms)
- GET /radio 200 in 223ms (compile: 196ms, render: 27ms)
+✓ Ready in 1145ms
+ GET /radio 200 in 36ms (compile: 3ms, render: 33ms)

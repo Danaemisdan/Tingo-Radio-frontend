@@ -86,20 +86,20 @@ export default function RadioPage() {
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={() => setIsMobileChatOpen(p => !p)}
-            className="md:hidden fixed top-8 right-8 z-[60] w-12 h-12 rounded-full backdrop-blur-md shadow-xl flex items-center justify-center cursor-pointer transition-colors"
+            className="md:hidden fixed bottom-8 right-6 z-[60] w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center cursor-pointer"
             style={{
               background: isMobileChatOpen
-                ? "rgba(251,146,60,0.35)"
-                : "rgba(20,20,28,0.75)",
-              border: "1px solid rgba(251,146,60,0.4)",
-              color: "#fb923c",
+                ? "rgba(251,146,60,0.95)"
+                : "rgba(15,15,22,0.88)",
+              border: "1px solid rgba(251,146,60,0.5)",
+              color: isMobileChatOpen ? "#fff" : "#fb923c",
+              backdropFilter: "blur(12px)",
             }}
             aria-label="Toggle chat"
           >
-            {/* Headphones icon — nicer for a radio app */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+            {/* Filled Material chat bubble icon */}
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
             </svg>
           </motion.button>
         )}
@@ -123,8 +123,8 @@ export default function RadioPage() {
           "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
         ].join(" ")}
       >
-        {/* Program card */}
-        <div className="flex items-end justify-center pointer-events-auto relative w-full max-w-[320px] sm:max-w-[350px] min-h-[64px]">
+        {/* Program card — hidden on mobile to keep it clean */}
+        <div className="hidden sm:flex items-end justify-center pointer-events-auto relative w-full max-w-[320px] sm:max-w-[350px] min-h-[64px]">
           <AnimatePresence>
             {isPlaying && (
               <motion.div key="card"
