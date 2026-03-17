@@ -39,8 +39,10 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
     // If playing, start the stream; if paused, stop it.
     if (audioRef.current) {
       if (isPlaying) {
-        // Appending timestamp to bypass browser caching for live streams
-        const streamBase = process.env.NEXT_PUBLIC_API_URL || `http://localhost:8000`;
+        // NEXT_PUBLIC_STREAM_URL = your Cloudflare tunnel pointing to Icecast :8000
+        // e.g. https://stream.tingoradio.ai or https://your-tunnel.trycloudflare.com
+        // Falls back to localhost:8000 for local dev
+        const streamBase = process.env.NEXT_PUBLIC_STREAM_URL || `http://localhost:8000`;
         audioRef.current.src = `${streamBase}/stream?t=${Date.now()}`;
         audioRef.current.play().catch(console.error);
       } else {
