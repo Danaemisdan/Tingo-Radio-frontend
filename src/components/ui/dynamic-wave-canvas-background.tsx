@@ -1,16 +1,28 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const HeroWave = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Detect touch/mobile device — skip heavy canvas animation to prevent iPhone lag
+  const [isMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(pointer: coarse)').matches ||
+      navigator.maxTouchPoints > 0 ||
+      window.innerWidth < 768
+    );
+  });
 
   useEffect(() => {
+    // On mobile: skip entirely — use static CSS gradient instead
+    if (isMobile) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let width: number, height: number, imageData: ImageData, data: Uint8ClampedArray;
-    // Increase SCALE to drastically reduce pixel calculations per frame (optimize performance)
+    // SCALE=8 means we compute 1/64th of pixels and upscale — fast enough for desktop
     const SCALE = 8;
     let animationFrameId: number;
 
@@ -95,7 +107,19 @@ const HeroWave = () => {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [isMobile]);
+
+  // Mobile: static gradient (zero CPU, same dark purple/blue aesthetic)
+  if (isMobile) {
+    return (
+      <div
+        className="absolute inset-0 w-full h-full"
+        style={{
+          background: 'radial-gradient(ellipse at 20% 80%, rgba(60,20,80,0.6) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(20,30,80,0.5) 0%, transparent 60%), linear-gradient(180deg, #050508 0%, #0a0814 50%, #050508 100%)',
+        }}
+      />
+    );
+  }
 
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
 };
