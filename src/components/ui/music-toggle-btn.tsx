@@ -36,18 +36,30 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
   };
 
   useEffect(() => {
-    // If playing, start the stream; if paused, stop it.
     if (audioRef.current) {
       if (isPlaying) {
-        // NEXT_PUBLIC_STREAM_URL = your Cloudflare tunnel pointing to Icecast :8000
-        // e.g. https://stream.tingoradio.ai or https://your-tunnel.trycloudflare.com
-        // Falls back to localhost:8000 for local dev
-        const streamBase = process.env.NEXT_PUBLIC_STREAM_URL || `http://localhost:8000`;
-        audioRef.current.src = `${streamBase}/stream?t=${Date.now()}`;
+        // Stream URL priority:
+        // 1. NEXT_PUBLIC_STREAM_URL — explicit separate stream tunnel (optional)
+        // 2. NEXT_PUBLIC_API_URL/api/stream — uses the existing FastAPI proxy (recommended: one tunnel for both)
+        // 3. localhost:8000 — local dev only (will fail on mobile from HTTPS)
+        const apiBase = process.env.NEXT_PUBLIC_API_URL;
+        const streamBase =
+          process.env.NEXT_PUBLIC_STREAM_URL ||
+          (apiBase ? `${apiBase}/api/stream` : null);
+
+        if (!streamBase) {
+          // Local dev fallback
+          audioRef.current.src = `http://localhost:8000/stream?t=${Date.now()}`;
+        } else if (streamBase.includes("/api/stream")) {
+          // API proxy — no extra path suffix needed
+          audioRef.current.src = `${streamBase}?t=${Date.now()}`;
+        } else {
+          // Dedicated stream tunnel pointing at Icecast
+          audioRef.current.src = `${streamBase}/stream?t=${Date.now()}`;
+        }
         audioRef.current.play().catch(console.error);
       } else {
         audioRef.current.pause();
-        // Clear src to stop buffering in background
         audioRef.current.src = "";
       }
     }
