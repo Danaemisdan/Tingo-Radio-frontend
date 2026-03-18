@@ -56,32 +56,26 @@ export default function RadioPage() {
       </div>
 
       {/* Aurora when playing */}
-      {/* Aurora when playing — desktop only, way too expensive on iPhone */}
-      {!isMobile && (
-        <AnimatePresence>
-          {isPlaying && (
-            <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-              <motion.div
-                className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[100px] md:blur-[150px] rounded-full mix-blend-screen opacity-30 md:opacity-40"
-                animate={{ scale: [1, 1.2, 1], x: ['0%', '10%', '0%'], y: ['0%', '-10%', '0%'] }}
-                transition={{ duration: 15, repeat: Infinity }}
-                style={{ willChange: 'auto' }} />
-              <motion.div
-                className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[100px] md:blur-[150px] rounded-full mix-blend-screen opacity-20 md:opacity-30"
-                animate={{ scale: [1, 1.3, 1], x: ['0%', '-15%', '0%'], y: ['0%', '10%', '0%'] }}
-                transition={{ duration: 18, repeat: Infinity }}
-                style={{ willChange: 'auto' }} />
-              {/* Third orb hidden on mobile — too heavy */}
-              <motion.div
-                className="hidden md:block absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[120px] rounded-full mix-blend-screen opacity-30"
-                animate={{ scale: [1, 1.4, 1], x: ['0%', '20%', '0%'], y: ['0%', '20%', '0%'] }}
-                transition={{ duration: 20, repeat: Infinity }} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      )}
-
+      {/* Aurora when playing */}
+      <AnimatePresence>
+        {isPlaying && (
+          <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            <motion.div
+              className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[100px] rounded-full mix-blend-screen opacity-30"
+              animate={{ scale: [1, 1.2, 1], x: ['0%', '10%', '0%'], y: ['0%', '-10%', '0%'] }}
+              transition={{ duration: 15, repeat: Infinity }} />
+            <motion.div
+              className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[100px] rounded-full mix-blend-screen opacity-20"
+              animate={{ scale: [1, 1.3, 1], x: ['0%', '-15%', '0%'], y: ['0%', '10%', '0%'] }}
+              transition={{ duration: 18, repeat: Infinity }} />
+            <motion.div
+              className="hidden md:block absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[100px] rounded-full mix-blend-screen opacity-25"
+              animate={{ scale: [1, 1.4, 1], x: ['0%', '20%', '0%'], y: ['0%', '20%', '0%'] }}
+              transition={{ duration: 20, repeat: Infinity }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Floating Emoji Overlay */}
       <FloatingEmojiOverlay emojis={floatingEmojis} />
