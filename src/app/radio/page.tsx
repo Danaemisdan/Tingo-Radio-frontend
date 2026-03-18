@@ -195,8 +195,8 @@ export default function RadioPage() {
             </AnimatePresence>
           </div>
 
-          {/* Volume — always centered under play button, wider on mobile for touch */}
-          <div className="pointer-events-auto mb-4 sm:mb-6 w-56 sm:w-48">
+          {/* Volume — always centered under play button regardless of chat button offset */}
+          <div className="pointer-events-auto mb-4 sm:mb-6 w-56 mx-auto flex items-center justify-center">
             <MinimalVolumeBar onVolumeChange={setVolume} />
           </div>
         </div>
