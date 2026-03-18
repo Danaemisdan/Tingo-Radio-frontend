@@ -159,7 +159,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user: username, message: msg, type }),
     });
-    await poll();
+    await doPoll();
   };
 
   const sendMessage = async () => {
