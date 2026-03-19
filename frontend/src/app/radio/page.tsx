@@ -61,18 +61,19 @@ export default function RadioPage() {
         {isPlaying && (
           <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            {/* Removed mix-blend-screen to fix iOS Safari blocky GPU artifact bug */}
             <motion.div
-              className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[100px] rounded-full mix-blend-screen opacity-30"
+              className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[80px] sm:blur-[100px] rounded-full opacity-20 transform-gpu"
               animate={{ scale: [1, 1.2, 1], x: ['0%', '10%', '0%'], y: ['0%', '-10%', '0%'] }}
-              transition={{ duration: 15, repeat: Infinity }} />
+              transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} />
             <motion.div
-              className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[100px] rounded-full mix-blend-screen opacity-20"
+              className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[80px] sm:blur-[100px] rounded-full opacity-15 transform-gpu"
               animate={{ scale: [1, 1.3, 1], x: ['0%', '-15%', '0%'], y: ['0%', '10%', '0%'] }}
-              transition={{ duration: 18, repeat: Infinity }} />
+              transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} />
             <motion.div
-              className="hidden md:block absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[100px] rounded-full mix-blend-screen opacity-25"
+              className="hidden md:block absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[100px] rounded-full opacity-15 transform-gpu"
               animate={{ scale: [1, 1.4, 1], x: ['0%', '20%', '0%'], y: ['0%', '20%', '0%'] }}
-              transition={{ duration: 20, repeat: Infinity }} />
+              transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -156,43 +157,47 @@ export default function RadioPage() {
             {isPlaying ? "ON AIR" : "Click here to play"}
           </span>
 
-          {/*
-           * Play button row:
-           * - On desktop: just the play button, centered
-           * - On mobile: chat button pops out to the RIGHT with a genie spring animation
+          {/* 
+           * Play button strictly center locked: 
+           * We use a 3-column flex approach so the side elements don't push the center 
            */}
-          <div className="flex items-center justify-center gap-4 mb-4 sm:mb-8 pointer-events-none">
-            {/* backdrop-blur removed on mobile — expensive compositing layer */}
+          <div className="relative w-full flex items-center justify-center mb-4 sm:mb-8 pointer-events-none h-[72px]">
+            {/* Left Buffer (empty, balances the right side) */}
+            <div className="flex-1" />
+
+            {/* Center: Play Button (Always exact middle) */}
             <div className={`p-2 rounded-full border border-white/10 shadow-2xl pointer-events-auto flex items-center justify-center hover:border-white/30 cursor-pointer shrink-0 z-10 touch-manipulation ${isMobile ? 'bg-black/80' : 'bg-black/60 backdrop-blur-md'}`}>
               <MusicToggleButton onPlayChange={setIsPlaying} volume={volume} />
             </div>
 
-            {/* Chat button — genie pops out to right of play btn, mobile only */}
-            <AnimatePresence>
-              {isPlaying && (
-                <motion.button
-                  key="chat-btn-inline"
-                  initial={{ opacity: 0, scale: 0, x: -30 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0, x: -30 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 22, delay: 0.1 }}
-                  onClick={() => setIsMobileChatOpen(p => !p)}
-                  className="md:hidden w-14 h-14 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto shrink-0 touch-manipulation"
-                  style={{
-                    background: isMobileChatOpen ? "rgba(251,146,60,0.9)" : "rgba(30,30,38,0.85)",
-                    border: "1px solid rgba(251,146,60,0.45)",
-                    color: isMobileChatOpen ? "#fff" : "#fb923c",
-                    backdropFilter: "blur(14px)",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-                  }}
-                  aria-label="Open chat"
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-                  </svg>
-                </motion.button>
-              )}
-            </AnimatePresence>
+            {/* Right: Chat Button */}
+            <div className="flex-1 flex justify-start pl-4 pointer-events-none">
+              <AnimatePresence>
+                {isPlaying && (
+                  <motion.button
+                    key="chat-btn-inline"
+                    initial={{ opacity: 0, scale: 0, x: -20 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0, x: -20 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                    onClick={() => setIsMobileChatOpen(p => !p)}
+                    className="md:hidden w-14 h-14 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto shrink-0 touch-manipulation"
+                    style={{
+                      background: isMobileChatOpen ? "rgba(251,146,60,0.9)" : "rgba(30,30,38,0.85)",
+                      border: "1px solid rgba(251,146,60,0.45)",
+                      color: isMobileChatOpen ? "#fff" : "#fb923c",
+                      backdropFilter: "blur(14px)",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+                    }}
+                    aria-label="Open chat"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                    </svg>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Volume — always centered under play button regardless of chat button offset */}
