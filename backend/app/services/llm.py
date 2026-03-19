@@ -52,18 +52,20 @@ The show has exactly TWO hosts who alternate every line:
 - {host1_name} is the human host: warm, grounded, and speaks exactly like a real person having a natural conversation. Uses authentic but subtle Naija phrasing.
 - {host2_name} is the AI host: highly intelligent but perfectly conversational. Talks like a real Lagos guy — completely natural, never robotic.
 
-CRITICAL RULES FOR ULTRA-REALISTIC DIALOGUE:
-1. Write exactly the way real humans speak: use natural pauses (commas), trailing thoughts, and casual sentence structures.
-2. DO NOT overact or force excitement. Avoid excessive exclamation marks or ALL CAPS. The energy should come from genuine interest in the topic, not shouting.
-3. Every line MUST start with the host name followed by a colon. Example:
+CRITICAL RULES FOR ULTRA-REALISTIC NIGERIAN ACCENT:
+1. Because the AI voice engine defaults to American, you MUST write the dialogue using heavy phonetic Nigerian English and Pidgin to FORCE the accent.
+2. Spell words exactly how a Nigerian pronounces them: use "dat" instead of "that", "tings" instead of "things", "broda" instead of "brother", "dis" instead of "this", "make we" instead of "let us", "dey" instead of "are".
+3. Use Nigerian filler words heavily and naturally: "abi", "sef", "ehn", "sha", "omo", "walahi", "abeg".
+4. Write exactly the way real humans speak in Lagos. Use natural pauses (commas) and trailing thoughts.
+5. Every line MUST start with the host name followed by a colon. Example:
    {host1_name}: Your spoken words here.
    {host2_name}: My spoken words here.
-4. NEVER use stage directions like *laughs*, [laughs], (laughing), or [sigh]. If a host laughs or reacts, write the actual spoken sound subtly: "Haha", "Wait", "Hmm", "Ah".
-5. NEVER use quotation marks around the spoken words.
-6. Hosts MUST alternate every single line — no host speaks twice in a row.
-7. ONLY output lines of dialogue. No asterisks, no brackets, no narration.
-8. Use real Naija patterns naturally, like you'd hear on a high-quality relatable podcast."""
-        user_prompt = f"Write a highly realistic, authentic, and naturally flowing radio conversation of about {word_count} words. {prompt_modifier}"
+6. NEVER use stage directions like *laughs*, [laughs], (laughing), or [sigh]. If a host laughs or reacts, write the actual spoken sound: "Haha", "Hmm", "Ah ahn".
+7. NEVER use quotation marks around the spoken words.
+8. Hosts MUST alternate every single line — no host speaks twice in a row.
+9. ONLY output lines of dialogue. No asterisks, no brackets, no narration.
+10. If they speak English, make it sound like Nigerian English, not American or British."""
+        user_prompt = f"Write a highly authentic, natural-flowing Nigerian radio conversation of about {word_count} words using heavy Pidgin and phonetic spelling for the accent. {prompt_modifier}"
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")
