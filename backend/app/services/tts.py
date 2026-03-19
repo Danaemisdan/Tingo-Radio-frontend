@@ -110,17 +110,20 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
     try:
         os.makedirs(SHOWS_DIR, exist_ok=True)
 
+        speaker_map = {}
+        target_voices = ["ife_target.wav", "tingo_target.wav"]
+
         for i, line in enumerate(parsed_lines):
-            speaker = line['speaker']
+            speaker = line['speaker'].strip()
             text = line['text']
             
-            # Strict separation to prevent the LLM from talking to itself in the exact same voice.
-            # AI characters get the male 'tingo' voice, human hosts get the female 'ife' voice.
-            sl = speaker.lower()
-            if "tingo" in sl or "ai" in sl or "max" in sl:
-                voice = "tingo_target.wav"
-            else:
-                voice = "ife_target.wav"
+            # Dynamically map the first encountered name to Voice 1, and the second to Voice 2.
+            # This mathematically guarantees 2-person shows actually have 2 distinct voices.
+            if speaker not in speaker_map:
+                voice_idx = len(speaker_map) % len(target_voices)
+                speaker_map[speaker] = target_voices[voice_idx]
+            
+            voice = speaker_map[speaker]
                 
             temp_file = os.path.join(SHOWS_DIR, f"tmp_{job_id}_{i}.wav")
             generate_line_audio_sync(text, voice, temp_file)
