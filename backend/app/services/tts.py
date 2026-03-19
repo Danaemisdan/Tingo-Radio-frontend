@@ -18,20 +18,21 @@ SHOWS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media
 import requests
 
 VOICE_MAP = {
-    # Main OAP Hosts
+    # Default Nigerian Hosts
     "Ife": "ife_target.wav",
-    "Dozy": "tingo_target.wav",
-
-    # Legacy names mapped to same voices
     "Tingo": "tingo_target.wav",
+    
+    # AI Personas with Diverse African Accents
     "TingoAI Max": "tingo_target.wav",
     "AdaAI": "ife_target.wav",
     "Tingo Civic AI": "tingo_target.wav",
-    "Tingo Business AI": "tingo_target.wav",
+    "Tingo Business AI": "ife_target.wav",
     "Tingo Emotion AI": "ife_target.wav",
     "Tingo Sports AI": "tingo_target.wav",
     "Tingo Culture AI": "tingo_target.wav",
-    "TingoGPT Tech": "tingo_target.wav",
+    "TingoGPT Tech": "ife_target.wav",
+
+    # Human Co-hosts / Callers
     "Yaw": "tingo_target.wav",
     "Sheriff Quadry": "tingo_target.wav",
     "Fola Folayan": "ife_target.wav",
@@ -55,40 +56,28 @@ def parse_script(script_text: str) -> list[dict]:
 def generate_line_audio_sync(text: str, voice: str, output_path: str):
     """
     Synthesize one line using local XTTS zero-shot cloning server.
-    Preprocessing maximises naturalness and emotion.
     """
     import re
-
-    # Strip ALL bracketed stage directions so Coqui doesn't pronounce them
+    
+    # Strip ALL bracketed emotion tags anywhere in the prompt string so Coqui doesn't literally pronounce them.
     text = re.sub(r'\[.*?\]', '', text).strip()
-    text = re.sub(r'\(.*?\)', '', text).strip()
-
-    # Replace AI abbreviation with spoken form
+    
+    # Force Coqui to spell out "A I" without dragging out the pause
     text = re.sub(r'\bAI\b', 'A I', text)
     text = re.sub(r'\bAi\b', 'A I', text)
-
-    # Ellipsis → pause comma (more natural)
+    
+    # Prevent XTTS from literally sounding out "dot dot dot"
     text = text.replace("...", ", ")
-
-    # Em-dash to comma pause
-    text = text.replace(" — ", ", ")
-    text = text.replace("—", ", ")
-
-    # Strip asterisks (markdown bold) that might slip through from LLM
-    text = text.replace("*", "")
-
-    # Skip completely empty lines
-    if not text.strip():
-        return
-
+        
+    final_text = text
+    
     url = "http://localhost:8001/synthesize"
     payload = {
-        "text": text,
+        "text": final_text,
         "speaker_wav": voice,
-        "language": "en",
-        "speed": 1.1,           # Slightly faster = more energetic on-air feel
+        "language": "en"
     }
-
+    
     import time
     max_retries = 60
     for attempt in range(max_retries):
@@ -100,12 +89,11 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str):
             return
         except Exception as e:
             if attempt < max_retries - 1:
-                logger.warning(f"XTTS server not ready (attempt {attempt+1}/{max_retries}): {e}. Retrying in 5s...")
+                logger.warning(f"XTTS server not ready or failed (attempt {attempt+1}/{max_retries}): {e}. Retrying in 5 seconds...")
                 time.sleep(5)
             else:
                 logger.error(f"XTTS server failed for voice {voice}: {e}")
-                raise RuntimeError(f"XTTS synthesis failed after {max_retries} attempts: {e}")
-
+                raise RuntimeError(f"XTTS Voice Cloning strictly required but failed: {e}")
 
 def synthesize_show_sync(script_text: str, output_filename: str) -> str:
     """
@@ -125,22 +113,17 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
         for i, line in enumerate(parsed_lines):
             speaker = line['speaker']
             text = line['text']
-            if not text.strip():
-                continue
-
-            # Ife = female voice, Dozy + everything else = male voice
+            
+            # Strict separation to prevent the LLM from talking to itself in the exact same voice.
+            # AI characters get the male 'tingo' voice, human hosts get the female 'ife' voice.
             sl = speaker.lower()
-            if sl in ("ife",) or "fola" in sl or "ada" in sl or "emotion" in sl:
-                voice = "ife_target.wav"
-            else:
+            if "tingo" in sl or "ai" in sl or "max" in sl:
                 voice = "tingo_target.wav"
-
+            else:
+                voice = "ife_target.wav"
+                
             temp_file = os.path.join(SHOWS_DIR, f"tmp_{job_id}_{i}.wav")
-            try:
-                generate_line_audio_sync(text, voice, temp_file)
-            except Exception as e:
-                logger.warning(f"Skipping line {i} (TTS failed): {e}")
-                continue
+            generate_line_audio_sync(text, voice, temp_file)
             temp_files.append(temp_file)
 
         final_path = os.path.join(SHOWS_DIR, output_filename)

@@ -47,8 +47,13 @@ class LLMService:
         system_prompt = f"""You are a professional radio scriptwriter for "{show_name}". Concept: {concept}
 
 The show has exactly TWO hosts who alternate every line:
-- {host1_name} is the human host: warm, passionate, uses Naija street slang naturally — like she's talking to her best friend, not performing.
-- {host2_name} is the AI host: sharp, analytical, but talks like a real Lagos guy — not robotic at all.
+- {host1_name} is the human host: OVER-THE-TOP, extreme high energy, incredibly passionate, uses heavy Naija street slang naturally! 
+- {host2_name} is the AI host: super charismatic, sharp, talks like a real Lagos guy but highly intelligent. Not robotic!
+
+CRITICAL EMOTION RULES FOR MAXIMUM TTS EXPRESSIVENESS:
+1. Use EXCLAMATION MARKS heavily!!!
+2. Use ALL CAPS for words that need extreme emphasis or shouting!
+3. Be insanely energetic. The hosts should sound like they are having the best time of their lives!
 
 STRICT FORMAT RULES:
 1. Every line MUST start with the host name followed by a colon. Example:
@@ -57,9 +62,9 @@ STRICT FORMAT RULES:
 2. NEVER use stage directions like *laughs*, [laughs], (laughing), or [sigh]. If a host laughs, write the actual sound: "Haaa!", "Oya wait", "Guy stoppp", "Lmaooo", "Ah ahn!". Sound it out.
 3. NEVER use quotation marks around the spoken words.
 4. Hosts MUST alternate every single line — no host speaks twice in a row.
-5. ONLY output lines of dialogue. No asterisks, no brackets, no narration, no directions.
-6. Talk like authentic Lagosians. Use real Naija patterns: half-sentences, exclamations, filler phrases like "I swear", "abeg joor", "omo!", "e dey pain me", "my guy", "ah ahn", "no be lie", "wetin", "sha", "walahi". Sound like a real pirate radio station in Lagos, not a BBC broadcast."""
-        user_prompt = f"Write a natural radio conversation of about {word_count} words. {prompt_modifier}"
+5. ONLY output lines of dialogue. No asterisks, no brackets, no narration.
+6. Talk like authentic Lagosians. Use real Naija patterns: half-sentences, exclamations, filler phrases like "I swear", "abeg joor", "omo!!!", "e dey pain me", "my guy", "ah ahn", "no be lie", "wetin", "sha", "walahi"."""
+        user_prompt = f"Write an EXTREMELY ENERGETIC, PASSIONATE, AND FUNNY radio conversation of about {word_count} words. Focus on hype! {prompt_modifier}"
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")

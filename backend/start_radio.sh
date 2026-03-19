@@ -12,10 +12,10 @@ echo "====================================="
 
 # Kill stale processes
 echo "🧹 Cleaning up stale processes..."
-pkill -f "uvicorn app.main:app" 2>/dev/null || true
-pkill -f "liquidsoap" 2>/dev/null || true
-pkill -f "icecast2|icecast -c" 2>/dev/null || true
-pkill -f cloudflared 2>/dev/null || true
+pkill -9 -f "uvicorn" 2>/dev/null || true
+pkill -9 -f "liquidsoap" 2>/dev/null || true
+pkill -9 -f "icecast2|icecast -c" 2>/dev/null || true
+pkill -9 -f "cloudflared" 2>/dev/null || true
 sleep 2
 
 cd "$BACKEND_DIR"
@@ -56,7 +56,7 @@ sleep 3
 
 # Verify backend is up
 echo -n "   Backend health check... "
-if curl -sf 'http://localhost:8080/api/chat/messages?since=0' > /dev/null 2>&1; then
+if curl -sf --max-time 3 'http://localhost:8080/api/chat/messages?since=0' > /dev/null 2>&1; then
   echo "✅ OK"
 else
   echo "⚠️  Not responding yet (may still be starting)"
