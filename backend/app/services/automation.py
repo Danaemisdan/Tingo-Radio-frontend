@@ -131,18 +131,33 @@ def transcribe_audio(file_path: str) -> str:
         logger.error(f"Failed to transcribe audio: {e}")
         return "I love your show, Tingo AI Radio!"
 
-# --- MUSIC DISABLED --- TALK RADIO ONLY ---
-# We force SHOWS_PER_AD = 1 so it's strictly Show -> Ad -> Show -> Ad
+# --- MIXED FORMAT: SONGS, SHOWS, ADS ---
+SONGS_PER_SHOW = 2
 SHOWS_PER_AD = 1
+
+MUSIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/music"))
+
+def get_random_song() -> str:
+    """Returns absolute path to a random mp3 in the music directory."""
+    try:
+        if not os.path.exists(MUSIC_DIR):
+            return ""
+        songs = [f for f in os.listdir(MUSIC_DIR) if f.endswith(".mp3")]
+        if not songs:
+            return ""
+        return os.path.join(MUSIC_DIR, random.choice(songs))
+    except Exception as e:
+        logger.error(f"Error reading music dir: {e}")
+        return ""
 
 def _automation_loop_sync(stop_event: threading.Event):
     """
-    TALK RADIO FORMAT:
-      [Show Segment] → wait overlap → [Ad] → wait overlap → repeat
-    No music at all.
+    MIXED RADIO FORMAT:
+      [Song Intro > Song] (x SONGS_PER_SHOW) → [Show Segment] → [Ad] → repeat
     """
     show_segment_counter = 0
     shows_since_last_ad = 0
+    songs_since_last_show = 0
     _used_topics: dict = {}
     current_show = {}
 
@@ -153,15 +168,40 @@ def _automation_loop_sync(stop_event: threading.Event):
                 time.sleep(10)
                 continue
 
-            # Pick a show
-            available = [s for s in shows if s != current_show] or shows
-            current_show = random.choice(available)
+            current_show = get_current_show(shows)
             host1 = current_show.get("host1_name", "Ife")
             host2 = current_show.get("host2_name", "Dozy")
-
-            interaction = get_next_audience_interaction()
-
             sname = current_show.get("show_name", "Morning Action")
+
+            # ── 1. SONG BLOCK ─────────────────────────────────────────
+            if songs_since_last_show < SONGS_PER_SHOW:
+                song_path = get_random_song()
+                if song_path:
+                    song_name = os.path.basename(song_path).replace(".mp3", "")
+                    logger.info(f"▶ Queuing Song: {song_name}")
+                    
+                    # Generate natural intro for the song
+                    intro_prompt = f"Write a very quick, extremely natural 10-second intro for the song '{song_name}'. {host1} and {host2} should just vibe for a few seconds before throwing to the track. KEEP IT SHORT."
+                    output_name = f"intro_{int(time.time())}.mp3"
+                    intro_path = show_generator.generate_show_segment_sync(current_show, intro_prompt, output_name)
+                    
+                    if intro_path:
+                        push_to_liquidsoap_sync(intro_path)
+                        _wait_for_overlap(get_audio_duration(intro_path), stop_event, f"intro for {song_name}")
+                    
+                    # Push actual song
+                    push_to_liquidsoap_sync(song_path)
+                    song_dur = get_audio_duration(song_path)
+                    _wait_for_overlap(song_dur, stop_event, f"song {song_name}")
+                    
+                    songs_since_last_show += 1
+                    continue # Loop back to play next song or drop into show
+
+            # Reset song counter once we drop into a show
+            songs_since_last_show = 0
+
+            # ── 2. SHOW BLOCK ─────────────────────────────────────────
+            interaction = get_next_audience_interaction()
             topics = current_show.get("topics", ["Insane energy in Africa right now!"])
             if sname not in _used_topics or len(_used_topics[sname]) >= len(topics):
                 _used_topics[sname] = []
@@ -173,20 +213,19 @@ def _automation_loop_sync(stop_event: threading.Event):
             if interaction:
                 if interaction["type"] == "call":
                     transcript = transcribe_audio(interaction["audio_path"])
-                    prompt_modifier += f"\\n\\nCRITICAL: A listener called in and said: '{transcript}'. Respond to them directly with MAXIMUM HYPED EMOTION!"
+                    prompt_modifier += f"\\n\\nCRITICAL: A listener called in and said: '{transcript}'. Respond to them directly naturally!"
                 else:
-                    prompt_modifier += f"\\n\\nCRITICAL: A listener sent a live chat: '{interaction['text']}'. Read it on air and respond with EXTREME PASSION!"
+                    prompt_modifier += f"\\n\\nCRITICAL: A listener sent a live chat: '{interaction['text']}'. Read it on air and respond naturally!"
 
             from .news_scraper import scrape_live_news
             live_news = scrape_live_news(base_topic)
             if live_news:
-                prompt_modifier += "\\nAnd discuss this breaking news with crazy energy: " + live_news
+                prompt_modifier += "\\nAnd discuss this breaking news casually: " + live_news
 
             show_segment_counter += 1
             output_name = f"show_segment_{show_segment_counter}.mp3"
             logger.info(f"Generating Show: {current_show['show_name']} #{show_segment_counter}")
             
-            # ── 1. GENERATE SHOW ──────────────────────────────────────
             ai_audio_path = show_generator.generate_show_segment_sync(current_show, prompt_modifier, output_name)
 
             if interaction and interaction["type"] == "call":
@@ -212,7 +251,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                 logger.info(f"▶ Queued Show {show_segment_counter} ({seg_dur:.0f}s). Overlapping next gen...")
                 _wait_for_overlap(seg_dur, stop_event, f"show {show_segment_counter}")
 
-            # ── 2. AD BREAK ───────────────────────────────────────────
+            # ── 3. AD BREAK ───────────────────────────────────────────
             shows_since_last_ad += 1
             if shows_since_last_ad >= SHOWS_PER_AD:
                 shows_since_last_ad = 0
