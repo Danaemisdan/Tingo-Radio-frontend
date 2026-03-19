@@ -1,7 +1,8 @@
 import requests
 import json
-from typing import Optional, List, Dict
 import logging
+import threading
+from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class LLMService:
     def __init__(self):
         # Global instantiation of the Llama-CPP model to keep it in Unified Memory
         self.llm = None
+        self._lock = threading.Lock()
         self._load_model()
 
     def _load_model(self):
@@ -69,19 +71,22 @@ CRITICAL RULES FOR ULTRA-REALISTIC DIALOGUE:
 
         try:
             logger.info(f"Generating script for [{show_name}] via Local GGUF Inference...")
-            response = self.llm.create_chat_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                max_tokens=800,
-                temperature=0.9,
-                top_p=0.92
-            )
+            
+            # CRITICAL: Prevent concurrent thread access to ggml-metal which causes EXC_BAD_ACCESS
+            with self._lock:
+                response = self.llm.create_chat_completion(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_tokens=800,
+                    temperature=0.9,
+                    top_p=0.92
+                )
             result = response["choices"][0]["message"]["content"]
             return result
         except Exception as e:
-            logger.error(f"Failed to generate script via local Llama-CPP: {e}")
+            logger.error(f"Failed to generate script via local Llama-CPP: {e}", exc_info=True)
             return f"{host1_name}: Thanks for tuning in to {show_name}!\n{host2_name}: We will be right back!"
 
 # Singleton instance
