@@ -1,30 +1,30 @@
 [
   {
-    "show_name": "Tingo Morning Adrenaline",
-    "concept": "The absolute most energetic, high-octane morning show alive. Non-stop hype, incredible debates, crazy energy.",
+    "show_name": "Tingo Morning Coffee",
+    "concept": "A relaxed, engaging, and thoughtful morning conversation. Real talk about life, work, and the stuff that matters.",
     "host1_name": "Ife",
     "host2_name": "Dozy",
     "start_time": "00:00",
     "end_time": "12:00",
     "topics": [
-      "The craziest things we've survived this week!",
-      "Hustle culture: are we working too hard or not hard enough?!",
-      "The absolute wildest tech news happening right now!",
-      "Busting the biggest myths about money and success!"
+      "Finding balance in a city that never stops moving",
+      "The unspoken rules of adult friendships",
+      "Navigating your career without losing your mind",
+      "Why we pretend to have it all figured out"
     ]
   },
   {
-    "show_name": "Tingo Evening Fire",
-    "concept": "Intense, passionate, ultra-engaging evening radio. Big opinions, big laughs, zero chill.",
+    "show_name": "Tingo Evening Unwind",
+    "concept": "A laid-back, late-night vibe. Deep thoughts, interesting perspectives, and genuine human connection.",
     "host1_name": "Ife",
     "host2_name": "Dozy",
     "start_time": "12:01",
     "end_time": "23:59",
     "topics": [
-      "Why the future of the world depends on Africa right now!",
-      "The most mind-blowing AI breakthroughs this month!",
-      "Relationship dealbreakers: the absolute non-negotiables!",
-      "Unpopular opinions that will start a riot!"
+      "The quiet moments that actually define our lives",
+      "How technology is changing the way we love and connect",
+      "Things we wish we knew ten years ago",
+      "The art of letting go of things you can't control"
     ]
   }
 ]

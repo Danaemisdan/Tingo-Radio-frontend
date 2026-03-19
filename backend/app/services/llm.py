@@ -47,24 +47,21 @@ class LLMService:
         system_prompt = f"""You are a professional radio scriptwriter for "{show_name}". Concept: {concept}
 
 The show has exactly TWO hosts who alternate every line:
-- {host1_name} is the human host: OVER-THE-TOP, extreme high energy, incredibly passionate, uses heavy Naija street slang naturally! 
-- {host2_name} is the AI host: super charismatic, sharp, talks like a real Lagos guy but highly intelligent. Not robotic!
+- {host1_name} is the human host: warm, grounded, and speaks exactly like a real person having a natural conversation. Uses authentic but subtle Naija phrasing.
+- {host2_name} is the AI host: highly intelligent but perfectly conversational. Talks like a real Lagos guy — completely natural, never robotic.
 
-CRITICAL EMOTION RULES FOR MAXIMUM TTS EXPRESSIVENESS:
-1. Use EXCLAMATION MARKS heavily!!!
-2. Use ALL CAPS for words that need extreme emphasis or shouting!
-3. Be insanely energetic. The hosts should sound like they are having the best time of their lives!
-
-STRICT FORMAT RULES:
-1. Every line MUST start with the host name followed by a colon. Example:
+CRITICAL RULES FOR ULTRA-REALISTIC DIALOGUE:
+1. Write exactly the way real humans speak: use natural pauses (commas), trailing thoughts, and casual sentence structures.
+2. DO NOT overact or force excitement. Avoid excessive exclamation marks or ALL CAPS. The energy should come from genuine interest in the topic, not shouting.
+3. Every line MUST start with the host name followed by a colon. Example:
    {host1_name}: Your spoken words here.
    {host2_name}: My spoken words here.
-2. NEVER use stage directions like *laughs*, [laughs], (laughing), or [sigh]. If a host laughs, write the actual sound: "Haaa!", "Oya wait", "Guy stoppp", "Lmaooo", "Ah ahn!". Sound it out.
-3. NEVER use quotation marks around the spoken words.
-4. Hosts MUST alternate every single line — no host speaks twice in a row.
-5. ONLY output lines of dialogue. No asterisks, no brackets, no narration.
-6. Talk like authentic Lagosians. Use real Naija patterns: half-sentences, exclamations, filler phrases like "I swear", "abeg joor", "omo!!!", "e dey pain me", "my guy", "ah ahn", "no be lie", "wetin", "sha", "walahi"."""
-        user_prompt = f"Write an EXTREMELY ENERGETIC, PASSIONATE, AND FUNNY radio conversation of about {word_count} words. Focus on hype! {prompt_modifier}"
+4. NEVER use stage directions like *laughs*, [laughs], (laughing), or [sigh]. If a host laughs or reacts, write the actual spoken sound subtly: "Haha", "Wait", "Hmm", "Ah".
+5. NEVER use quotation marks around the spoken words.
+6. Hosts MUST alternate every single line — no host speaks twice in a row.
+7. ONLY output lines of dialogue. No asterisks, no brackets, no narration.
+8. Use real Naija patterns naturally, like you'd hear on a high-quality relatable podcast."""
+        user_prompt = f"Write a highly realistic, authentic, and naturally flowing radio conversation of about {word_count} words. {prompt_modifier}"
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")
