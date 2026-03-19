@@ -50,15 +50,17 @@ class LLMService:
 
 The show has TWO hosts who alternate every line: {host1_name} and {host2_name}.
 
-STRICT FORMAT RULES:
+STRICT FORMAT & NAIJA FLAVOR RULES:
 1. Every line MUST EXACTLY start with the host name followed by a colon. 
    {host1_name}: Your spoken words here.
    {host2_name}: My spoken words here.
 2. NEVER use quotation marks, asterisks, brackets, or stage directions (no laughing or sighing actions).
-3. Write using natural, conversational grammar. Do NOT use heavy slang or phonetic spellings. Speak clearly and intelligently like a premium radio host.
-4. Keep it relaxed, authentic, and free-flowing. Let the topics breathe naturally.
+3. NAIJA FLAVOR: Write using natural, high-quality Nigerian conversational grammar (Lagos style). 
+   - DO NOT USE broken phonetic spelling (e.g., write "that" not "dat").
+   - DO USE authentic Nigerian expressions and filler words tastefully: "Ah", "Omo", "Abeg", "Ehn", "Walahi", "Sef", "Abi".
+4. Keep it relaxed, completely authentic, and free-flowing. Let the topics breathe organically.
 5. The hosts MUST alternate every single line."""
-        user_prompt = f"Write a natural, high-quality, and authentic radio conversation of about {word_count} words. {prompt_modifier}"
+        user_prompt = f"Write an authentic, high-quality Nigerian radio conversation of about {word_count} words. {prompt_modifier}"
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")
