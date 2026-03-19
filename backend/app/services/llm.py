@@ -48,19 +48,17 @@ class LLMService:
 
         system_prompt = f"""You are a professional radio scriptwriter for "{show_name}". Concept: {concept}
 
-The show has TWO hosts who alternate every line: {host1_name} and {host2_name}. Both are native Nigerians.
+The show has TWO hosts who alternate every line: {host1_name} and {host2_name}.
 
-STRICT FORMAT & NAIJA ACCENT RULES:
+STRICT FORMAT RULES:
 1. Every line MUST EXACTLY start with the host name followed by a colon. 
    {host1_name}: Your spoken words here.
    {host2_name}: My spoken words here.
 2. NEVER use quotation marks, asterisks, brackets, or stage directions (no laughing or sighing actions).
-3. Write using heavy Nigerian Pidgin and phonetic Naija spellings so the AI voice doesn't sound American!
-   Examples: instead of "that", write "dat". Instead of "brother", write "broda". Instead of "what", write "wetin". Use "dey", "make we", "tings", "dis".
-4. Use Naija filler words naturally: "abi", "sef", "omo", "abeg", "ehn".
-5. Keep it conversational, relaxed, and extremely authentic.
-6. The hosts MUST alternate every single line."""
-        user_prompt = f"Write a highly authentic Nigerian radio conversation of about {word_count} words using heavy Pidgin and phonetic spelling for the accent. {prompt_modifier}"
+3. Write using natural, conversational grammar. Do NOT use heavy slang or phonetic spellings. Speak clearly and intelligently like a premium radio host.
+4. Keep it relaxed, authentic, and free-flowing. Let the topics breathe naturally.
+5. The hosts MUST alternate every single line."""
+        user_prompt = f"Write a natural, high-quality, and authentic radio conversation of about {word_count} words. {prompt_modifier}"
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")
