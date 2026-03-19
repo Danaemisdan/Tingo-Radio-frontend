@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 import random
 
 STATION_IDS = [
-    "Welcome to Tingo AI Radio. Enjoy interacting with the future.",
-    "You're listening to Tingo AI. The smartest radio station on the planet.",
-    "Tingo AI Radio. Where humans and algorithms mix.",
-    "Welcome back to Tingo AI Radio. Let's get right into the show."
+    "Alright we're back on Tingo A I radio, and listen...",
+    "Welcome back guys, you're locked into Tingo A I radio.",
+    "Still here on Tingo A I radio, and I was just thinking...",
+    "Yeah so welcome back to Tingo A I radio..."
 ]
 
 class ShowGeneratorService:
