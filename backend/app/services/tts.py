@@ -110,20 +110,21 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
     try:
         os.makedirs(SHOWS_DIR, exist_ok=True)
 
-        speaker_map = {}
-        target_voices = ["ife_target.wav", "tingo_target.wav"]
-
+        # Hardcode the gender mappings so 'Ife' never gets the male voice and 'Dozy' never gets the female voice.
         for i, line in enumerate(parsed_lines):
             speaker = line['speaker'].strip()
             text = line['text']
             
-            # Dynamically map the first encountered name to Voice 1, and the second to Voice 2.
-            # This mathematically guarantees 2-person shows actually have 2 distinct voices.
-            if speaker not in speaker_map:
-                voice_idx = len(speaker_map) % len(target_voices)
-                speaker_map[speaker] = target_voices[voice_idx]
-            
-            voice = speaker_map[speaker]
+            sl = speaker.lower()
+            if "ife" in sl:
+                voice = "ife_target.wav"
+            elif "dozy" in sl:
+                voice = "Dozy_target.wav"
+            elif "tingo" in sl or "ai" in sl:
+                voice = "tingo_target.wav"
+            else:
+                # Fallback to male voice for unknown names to be safe
+                voice = "tingo_target.wav"
                 
             temp_file = os.path.join(SHOWS_DIR, f"tmp_{job_id}_{i}.wav")
             generate_line_audio_sync(text, voice, temp_file)
@@ -138,15 +139,22 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
                 segment = AudioSegment.from_wav(tf)
                 combined += segment
 
-        concat_audio_path = os.path.join(SHOWS_DIR, f"concat_audio_{job_id}.mp3")
-        combined.export(concat_audio_path, format="mp3", bitrate="320k")
+        concat_audio_path = os.path.join(SHOWS_DIR, f"concat_audio_{job_id}.wav")
+        combined.export(concat_audio_path, format="wav")
 
-        # (Removed aggressive Pydub +10dB amplification that caused clipping and 1950s distortion)
-
-        # No more background ducking: Sequential Radio Format
-        import shutil
-        shutil.move(concat_audio_path, final_path)
-        logger.info(f"Show synthesized successfully with XTTS: {final_path}")
+        # Apply a 10% speedup to make the pacing much tighter and more energetic using ffmpeg
+        try:
+            subprocess.run([
+                "ffmpeg", "-y", "-i", concat_audio_path, 
+                "-filter:a", "atempo=1.08", 
+                "-c:a", "libmp3lame", "-b:a", "320k", 
+                final_path
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            logger.info(f"Show synthesized successfully with 8% speedup: {final_path}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to speedup audio with ffmpeg, falling back to raw concat: {e}")
+            import shutil
+            shutil.move(concat_audio_path, final_path)
         return final_path
 
     except Exception as e:
