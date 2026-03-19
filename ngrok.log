@@ -1,0 +1,11 @@
+t=2026-03-14T02:17:30+0530 lvl=info msg="no configuration paths supplied"
+t=2026-03-14T02:17:30+0530 lvl=info msg="using configuration at default config path" path="/Users/sanjeevn/Library/Application Support/ngrok/ngrok.yml"
+t=2026-03-14T02:17:30+0530 lvl=info msg="open config file" path="/Users/sanjeevn/Library/Application Support/ngrok/ngrok.yml" err=nil
+t=2026-03-14T02:17:30+0530 lvl=info msg="FIPS 140 mode" enabled=false
+t=2026-03-14T02:17:30+0530 lvl=info msg="starting web service" obj=web addr=127.0.0.1:4040 allow_hosts=[]
+t=2026-03-14T02:17:32+0530 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-14T02:17:32+0530 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-14T02:17:32+0530 lvl=info msg="started tunnel" obj=tunnels name=command_line addr=http://localhost:3001 url=https://9164-2409-4091-c006-8619-d117-b429-1256-73bf.ngrok-free.app
+t=2026-03-14T02:17:33+0530 lvl=info msg="update available" obj=updater
+t=2026-03-14T02:17:33+0530 lvl=info msg=start pg=/api/tunnels id=58f6e79f56195523
+t=2026-03-14T02:17:33+0530 lvl=info msg=end pg=/api/tunnels id=58f6e79f56195523 status=200 dur=196.917µs

@@ -1,0 +1,14 @@
+[
+    {
+        "show_name": "Fallback AI Radio",
+        "concept": "A cool AI station.",
+        "host1_name": "Ife",
+        "host2_name": "TingoAI Max",
+        "start_time": "00:00",
+        "end_time": "23:59",
+        "topics": [
+            "Artificial Intelligence",
+            "Future of Africa"
+        ]
+    }
+]

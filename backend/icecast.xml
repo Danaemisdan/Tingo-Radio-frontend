@@ -1,0 +1,57 @@
+<icecast>
+    <location>Earth</location>
+    <admin>tingo-radio@localhost</admin>
+
+    <limits>
+        <clients>100</clients>
+        <sources>2</sources>
+        <!-- Larger queue handles cellular jitter without dropping the stream -->
+        <queue-size>1048576</queue-size>
+        <client-timeout>30</client-timeout>
+        <header-timeout>15</header-timeout>
+        <source-timeout>10</source-timeout>
+        <!-- burst-on-connect sends a chunk of audio immediately on connect -->
+        <!-- This is the #1 fix for mobile stream startup delay -->
+        <!-- 65536 bytes = ~3-4 seconds of pre-buffer so mobile plays almost instantly -->
+        <burst-on-connect>1</burst-on-connect>
+        <burst-size>65536</burst-size>
+    </limits>
+
+    <authentication>
+        <source-password>hackme</source-password>
+        <relay-password>hackme</relay-password>
+        <admin-user>admin</admin-user>
+        <admin-password>hackme</admin-password>
+    </authentication>
+
+    <hostname>localhost</hostname>
+    <listen-socket>
+        <port>8000</port>
+    </listen-socket>
+
+    <http-headers>
+        <header name="Access-Control-Allow-Origin" value="*" />
+        <header name="Access-Control-Allow-Methods" value="GET, OPTIONS" />
+        <header name="Access-Control-Allow-Headers" value="Origin, Accept, X-Requested-With, Content-Type" />
+    </http-headers>
+
+    <fileserve>1</fileserve>
+
+    <paths>
+        <!-- Use standard mac homebrew path, override based on system -->
+        <logdir>/opt/homebrew/var/log/icecast</logdir>
+        <webroot>/opt/homebrew/share/icecast/web</webroot>
+        <adminroot>/opt/homebrew/share/icecast/admin</adminroot>
+        <alias source="/" destination="/status.xsl"/>
+    </paths>
+
+    <logging>
+        <accesslog>access.log</accesslog>
+        <errorlog>error.log</errorlog>
+        <loglevel>3</loglevel> 
+    </logging>
+
+    <security>
+        <chroot>0</chroot>
+    </security>
+</icecast>

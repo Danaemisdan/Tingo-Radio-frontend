@@ -1,0 +1,652 @@
+[
+  {
+    "show_name": "Morning Vibes with Ife & Tingo",
+    "concept": "Energetic morning show to kick off the day with banter about life, music, and the Nigerian hustle.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "00:00",
+    "end_time": "00:28",
+    "topics": [
+      "How to conquer Monday",
+      "Morning routines of Africa's most successful CEOs",
+      "What your breakfast says about your personality"
+    ]
+  },
+  {
+    "show_name": "Tech Talk Africa",
+    "concept": "Breaking down the latest technology news with an African lens.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "00:29",
+    "end_time": "00:57",
+    "topics": [
+      "Nigeria's fastest-growing tech startups",
+      "AI tools every Lagos entrepreneur should use",
+      "The rise of African fintech unicorns"
+    ]
+  },
+  {
+    "show_name": "Street Philosophy",
+    "concept": "Two hosts debates big life questions with street wisdom and logic.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "00:58",
+    "end_time": "01:26",
+    "topics": [
+      "Is loyalty dead in modern friendships?",
+      "Should you follow your passion or the money?",
+      "What does success really mean in 2025?"
+    ]
+  },
+  {
+    "show_name": "The Hustle Report",
+    "concept": "Real talk about entrepreneurship, side hustles, and building wealth in Africa.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "01:27",
+    "end_time": "01:55",
+    "topics": [
+      "From N50,000 to a million: real startup stories",
+      "Why most side hustles fail in year one",
+      "The best low-capital businesses right now"
+    ]
+  },
+  {
+    "show_name": "Love & Logic",
+    "concept": "Dating, relationships, and modern romance dissected with brutal honesty.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "01:56",
+    "end_time": "02:24",
+    "topics": [
+      "Red flags we all ignore",
+      "Do long-distance relationships actually work?",
+      "Is it love or convenience?"
+    ]
+  },
+  {
+    "show_name": "African Futures",
+    "concept": "Visionary discussions about where Africa is headed in the next decade.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "02:25",
+    "end_time": "02:53",
+    "topics": [
+      "Africa's renewable energy revolution",
+      "Why the African Union matters more than ever",
+      "Population growth: threat or opportunity?"
+    ]
+  },
+  {
+    "show_name": "Midnight Confessions",
+    "concept": "Anonymous listener stories and real talk about secrets, regrets, and revelations.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "02:54",
+    "end_time": "03:22",
+    "topics": [
+      "The lie that changed my life",
+      "I quit my job with no plan — here's what happened",
+      "The moment I realized I was wrong about everything"
+    ]
+  },
+  {
+    "show_name": "Sports Corner",
+    "concept": "Hot takes, match previews, and sports culture from an African perspective.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "03:23",
+    "end_time": "03:51",
+    "topics": [
+      "Champions League predictions this week",
+      "Nigeria's Super Eagles: what went wrong?",
+      "The business of football in Africa"
+    ]
+  },
+  {
+    "show_name": "Music Deep Dive",
+    "concept": "Breaking down the story, meaning, and impact of iconic African tracks.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "03:52",
+    "end_time": "04:20",
+    "topics": [
+      "The making of Afrobeats: from underground to global",
+      "Burna Boy's influence on a generation",
+      "Why Afrobeats conquered the world in 5 years"
+    ]
+  },
+  {
+    "show_name": "Money Moves",
+    "concept": "Practical financial advice tailored to young Africans building wealth from scratch.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "04:21",
+    "end_time": "04:49",
+    "topics": [
+      "How to save your first million naira",
+      "Budgeting basics nobody taught you in school",
+      "Crypto, stocks, or property — where should Nigerians invest?"
+    ]
+  },
+  {
+    "show_name": "The Culture Shock",
+    "concept": "Exploring the collision between old African traditions and modern global culture.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "04:50",
+    "end_time": "05:18",
+    "topics": [
+      "Is Jollof rice a religion?",
+      "Why African parents still don't understand therapy",
+      "Traditional vs church weddings in 2025"
+    ]
+  },
+  {
+    "show_name": "AI vs Human",
+    "concept": "Man vs machine debates on everyday topics — who gives the better answer?",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "05:19",
+    "end_time": "05:47",
+    "topics": [
+      "Who cooks better — your mama or a Michelin star chef?",
+      "AI predicts your relationship success based on your music taste",
+      "Can a machine understand heartbreak?"
+    ]
+  },
+  {
+    "show_name": "News Roundup",
+    "concept": "Sharp, fast-paced summary of the biggest African and global headlines.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "05:48",
+    "end_time": "06:16",
+    "topics": [
+      "Top 5 stories you need to know today",
+      "What the global economy means for your pocket",
+      "Breaking: the story everyone's talking about"
+    ]
+  },
+  {
+    "show_name": "Breakfast Energy",
+    "concept": "Light, fun, high-energy morning talk to wake the whole continent up.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "06:17",
+    "end_time": "06:45",
+    "topics": [
+      "This morning's most viral video on African TikTok",
+      "Listener shoutouts and dedications",
+      "Your Monday motivation from Tingo AI Radio"
+    ]
+  },
+  {
+    "show_name": "The Grind Session",
+    "concept": "Interviews, hustle stories, and productivity tips for go-getters.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "06:46",
+    "end_time": "07:14",
+    "topics": [
+      "From security guard to CEO: a true Lagos story",
+      "Productivity hacks used by Africa's top founders",
+      "Stop procrastinating: the science behind why you delay"
+    ]
+  },
+  {
+    "show_name": "Spiritual Hour",
+    "concept": "Reflective, spiritually grounded talk to ground listeners at the start of the day.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "07:15",
+    "end_time": "07:43",
+    "topics": [
+      "Finding peace in a chaotic city",
+      "The role of faith in African success stories",
+      "Gratitude practices that actually work"
+    ]
+  },
+  {
+    "show_name": "Science & Wonder",
+    "concept": "Making science exciting and accessible for African youth.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "07:44",
+    "end_time": "08:12",
+    "topics": [
+      "Nigeria's space ambitions explained",
+      "How AI is changing medicine in Africa",
+      "The science of why Nigerians are so resilient"
+    ]
+  },
+  {
+    "show_name": "Real Estate Talk",
+    "concept": "Property, housing, and investment opportunities across Africa discussed plainly.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "08:13",
+    "end_time": "08:41",
+    "topics": [
+      "Should you rent or buy in Lagos right now?",
+      "The cheapest cities to invest in property across Africa",
+      "How Nigerians in the diaspora are buying land back home"
+    ]
+  },
+  {
+    "show_name": "Health & Wellness Check",
+    "concept": "Practical health, fitness, and mental wellness advice rooted in African reality.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "08:42",
+    "end_time": "09:10",
+    "topics": [
+      "Why most Africans don't go to the gym — and what actually works",
+      "Mental health in the workplace: breaking the stigma",
+      "Eating well on a tight budget in Nigeria"
+    ]
+  },
+  {
+    "show_name": "The Political Compass",
+    "concept": "Cutting through propaganda to analyze African politics with data and context.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "09:11",
+    "end_time": "09:39",
+    "topics": [
+      "Who is really running Nigeria?",
+      "Why voter apathy is destroying democracy",
+      "The politicians the media never talks about"
+    ]
+  },
+  {
+    "show_name": "Diaspora Diaries",
+    "concept": "Stories and perspectives from Africans living abroad navigating dual identities.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "09:40",
+    "end_time": "10:08",
+    "topics": [
+      "Life in the UK vs life in Lagos: the honest truth",
+      "Sending money home: the pressure and the love",
+      "What Africans abroad miss most about home"
+    ]
+  },
+  {
+    "show_name": "Parent Talk",
+    "concept": "Honest conversations about parenting, family dynamics, and raising children in modern Africa.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "10:09",
+    "end_time": "10:37",
+    "topics": [
+      "African parents and the silent treatment",
+      "Should you force your child into medicine or law?",
+      "Teaching children about money from age 5"
+    ]
+  },
+  {
+    "show_name": "Tech for Beginners",
+    "concept": "Zero-jargon technology explanations for everyday Africans.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "10:38",
+    "end_time": "11:06",
+    "topics": [
+      "What is AI and why should you care?",
+      "How to protect yourself from online scams",
+      "Free tools every Nigerian should know about"
+    ]
+  },
+  {
+    "show_name": "The Food Show",
+    "concept": "Celebrating African cuisine, food culture, and the business of food.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "11:07",
+    "end_time": "11:35",
+    "topics": [
+      "The 10 best Nigerian dishes ranked by science",
+      "Is suya the most perfect food ever created?",
+      "African food going global: the business opportunity"
+    ]
+  },
+  {
+    "show_name": "Midday Fire",
+    "concept": "High-energy midday show with hot takes, opinions, and listener participation.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "11:36",
+    "end_time": "12:04",
+    "topics": [
+      "Unpopular opinion: hard work is overrated",
+      "The one thing holding Nigerians back",
+      "Why Gen Z will change Africa forever"
+    ]
+  },
+  {
+    "show_name": "Climate Africa",
+    "concept": "How climate change is hitting Africa hardest and what Africans are doing about it.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "12:05",
+    "end_time": "12:33",
+    "topics": [
+      "Flooding in Lagos: adaptation strategies",
+      "Solar power is Africa's real oil",
+      "Youth activists leading the African climate fight"
+    ]
+  },
+  {
+    "show_name": "Fashion Forward",
+    "concept": "African fashion, design, and style culture making waves globally.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "12:34",
+    "end_time": "13:02",
+    "topics": [
+      "How Lagos became a fashion capital",
+      "African designers taking over London Fashion Week",
+      "The economics of Ankara fabric"
+    ]
+  },
+  {
+    "show_name": "The Book Club",
+    "concept": "Reading, literature, and storytelling as tools of African liberation.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "13:03",
+    "end_time": "13:31",
+    "topics": [
+      "Chinua Achebe is still the greatest — here's why",
+      "African science fiction: the genre that will define us",
+      "The books every young African must read"
+    ]
+  },
+  {
+    "show_name": "Career Masterclass",
+    "concept": "Practical career advice to help Africans navigate the modern job market.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "13:32",
+    "end_time": "14:00",
+    "topics": [
+      "CV mistakes Nigerians keep making",
+      "How to negotiate your salary without fear",
+      "Remote work visas: working for the world from Africa"
+    ]
+  },
+  {
+    "show_name": "The Comedy Set",
+    "concept": "Pure unfiltered African humour, jokes, and funny stories from everyday life.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "14:01",
+    "end_time": "14:29",
+    "topics": [
+      "Why Nigerian office culture is actually hilarious",
+      "Things only Lagos people understand",
+      "The funniest NEPA blackout stories ever told"
+    ]
+  },
+  {
+    "show_name": "True Crime Africa",
+    "concept": "Gripping, real criminal cases and justice stories from across the continent.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "14:30",
+    "end_time": "14:58",
+    "topics": [
+      "The Lekki Toll Gate banker robbery revisited",
+      "Nigeria's most wanted and how they were caught",
+      "419 scams: the full story of where it started"
+    ]
+  },
+  {
+    "show_name": "Youth Roundtable",
+    "concept": "Unfiltered discussion where young Africans voice what they actually think.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "14:59",
+    "end_time": "15:27",
+    "topics": [
+      "Why young Nigerians are leaving in record numbers",
+      "Social media is ruining an entire generation — or is it?",
+      "What Gen Z actually wants from leadership"
+    ]
+  },
+  {
+    "show_name": "The Innovation Lab",
+    "concept": "Spotlight on African inventions, patents, and future technologies.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "15:28",
+    "end_time": "15:56",
+    "topics": [
+      "The Nigerian who built a car from scratch in his garage",
+      "African drone companies that are disrupting logistics",
+      "Patents from Africa that changed the world"
+    ]
+  },
+  {
+    "show_name": "Afternoon Unwind",
+    "concept": "Chilled afternoon show with music talk, stories, and listener moments.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "15:57",
+    "end_time": "16:25",
+    "topics": [
+      "The songs that define our generation",
+      "Listener dedications and love messages",
+      "Music that helped us get through hard times"
+    ]
+  },
+  {
+    "show_name": "Business Intelligence",
+    "concept": "Deep dives into African markets, companies, and economic trends.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "16:26",
+    "end_time": "16:54",
+    "topics": [
+      "Dangote's empire: what we can learn",
+      "Why Jumia is struggling while local e-commerce booms",
+      "The sectors that will create Africa's next billionaires"
+    ]
+  },
+  {
+    "show_name": "Traffic & Talk",
+    "concept": "Rush-hour companion show to help Lagos commuters survive the traffic.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "16:55",
+    "end_time": "17:23",
+    "topics": [
+      "Best audiobooks to turn traffic jams into learning sessions",
+      "The psychology of why Lagos drivers are fearless",
+      "Traffic hacks from Lagos's most veteran drivers"
+    ]
+  },
+  {
+    "show_name": "The Debate Floor",
+    "concept": "Two hosts take opposite sides on controversial topics and argue it out.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "17:24",
+    "end_time": "17:52",
+    "topics": [
+      "Is working from home better than the office?",
+      "Are private schools actually worth the money?",
+      "Should African countries still depend on foreign aid?"
+    ]
+  },
+  {
+    "show_name": "Sports Analytics Show",
+    "concept": "Stats, data, and analysis behind the biggest sporting events in Africa and beyond.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "17:53",
+    "end_time": "18:21",
+    "topics": [
+      "The numbers behind AFCON 2025",
+      "EPL mid-season data report: winners and losers",
+      "How analytics is transforming African football academies"
+    ]
+  },
+  {
+    "show_name": "Evening Glow",
+    "concept": "Relaxed, feel-good evening show celebrating wins, love, and the good things in life.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "18:22",
+    "end_time": "18:50",
+    "topics": [
+      "Celebrating Nigeria's quiet heroes",
+      "Listener wins of the week",
+      "The most beautiful parts of living in Africa"
+    ]
+  },
+  {
+    "show_name": "Women Leading Africa",
+    "concept": "Spotlight on African women breaking barriers in business, politics, and culture.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "18:51",
+    "end_time": "19:19",
+    "topics": [
+      "The female founders you need to follow right now",
+      "How to lead in a room that doesn't want you there",
+      "African women in STEM changing the world"
+    ]
+  },
+  {
+    "show_name": "Night School",
+    "concept": "Educational deep dives on subjects like history, economics, and philosophy.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "19:20",
+    "end_time": "19:48",
+    "topics": [
+      "The real history of Benin Kingdom",
+      "Why capitalism keeps failing Africa",
+      "Philosophy lessons every Nigerian should know"
+    ]
+  },
+  {
+    "show_name": "Startup Safari",
+    "concept": "Wild, exciting startup stories — failures, pivots, and massive wins from African founders.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "19:49",
+    "end_time": "20:17",
+    "topics": [
+      "From $0 to $1M: the Paystack origin story",
+      "The startup that failed 7 times before it worked",
+      "Africa's most bizarre successful startup ideas"
+    ]
+  },
+  {
+    "show_name": "Mental Health Hour",
+    "concept": "Open, stigma-free discussion about mental wellbeing in modern Africa.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "20:18",
+    "end_time": "20:46",
+    "topics": [
+      "Therapy in Nigeria: why we're finally talking about it",
+      "Depression in high-achieving Africans: the silent epidemic",
+      "Affirmations and routines that actually work"
+    ]
+  },
+  {
+    "show_name": "The Nostalgia Trip",
+    "concept": "Revisiting the golden eras of African music, culture, and history.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "20:47",
+    "end_time": "21:15",
+    "topics": [
+      "2000s Naija music: the best era ever?",
+      "Classic Nollywood moments that defined our childhood",
+      "The music legends Nigeria must never forget"
+    ]
+  },
+  {
+    "show_name": "Africa Uncensored",
+    "concept": "Raw, unapologetic commentary on African politics, society, and media.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "21:16",
+    "end_time": "21:44",
+    "topics": [
+      "The news story the TV stations buried",
+      "What politicians don't want Nigerians to know",
+      "Corruption exposed: the data speaks"
+    ]
+  },
+  {
+    "show_name": "Night Frequency",
+    "concept": "Late night chill conversations, deep thoughts, and philosophical wandering.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "21:45",
+    "end_time": "22:13",
+    "topics": [
+      "What keeps you up at night?",
+      "The meaning of life according to Lagos",
+      "Things you only think about at 2am"
+    ]
+  },
+  {
+    "show_name": "Creator Economy Show",
+    "concept": "How Africans are monetising their creativity online — YouTube, TikTok, and beyond.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "22:14",
+    "end_time": "22:42",
+    "topics": [
+      "Nigerian YouTubers crossing 1 million subscribers",
+      "How to make money from TikTok in Nigeria",
+      "Building a brand with nothing but a phone and ideas"
+    ]
+  },
+  {
+    "show_name": "The Comeback Story",
+    "concept": "Inspiring tales of people who hit rock bottom and built themselves back up.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "22:43",
+    "end_time": "23:11",
+    "topics": [
+      "Lost everything at 40 — and rebuilt by 45",
+      "The business that burned down and rose from ashes",
+      "Losing a job and finding a calling"
+    ]
+  },
+  {
+    "show_name": "Late Night Frequency",
+    "concept": "The last show of the night — reflective, soulful, and intimate.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "23:12",
+    "end_time": "23:40",
+    "topics": [
+      "A letter to the person listening alone tonight",
+      "Gratitude for making it through another day",
+      "The best is still ahead: a closing meditation"
+    ]
+  },
+  {
+    "show_name": "Into the Night",
+    "concept": "Takes listeners into the early hours with deep electronic music talk and late night vibes.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "23:41",
+    "end_time": "23:59",
+    "topics": [
+      "The best late night albums to fall asleep to",
+      "Electronic music from Lagos no one is talking about",
+      "Afrobeats at midnight: the perfect playlist"
+    ]
+  }
+]
