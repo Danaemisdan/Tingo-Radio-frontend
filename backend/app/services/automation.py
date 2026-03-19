@@ -181,7 +181,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                     logger.info(f"▶ Queuing Song: {song_name}")
                     
                     # Generate natural intro for the song
-                    intro_prompt = f"Write a very quick, extremely natural 10-second intro for the song '{song_name}'. {host1} and {host2} should just vibe for a few seconds before throwing to the track. KEEP IT SHORT."
+                    intro_prompt = f"Write a very quick, extremely natural 10-second intro for the track '{song_name}'. Ignore any 'Official Video' or 'Lyric Video' tags in the name, just say the artist and song naturally. {host1} and {host2} should just vibe for a few seconds before throwing to the track. KEEP IT SHORT."
                     output_name = f"intro_{int(time.time())}.mp3"
                     intro_path = show_generator.generate_show_segment_sync(current_show, intro_prompt, output_name)
                     
