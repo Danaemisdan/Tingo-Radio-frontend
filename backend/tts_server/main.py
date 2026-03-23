@@ -44,12 +44,22 @@ async def synthesize(request: SynthesizeRequest):
 
         output_filename = f"outputs/output_{uuid.uuid4().hex[:8]}.wav"
 
-        # Generate audio using XTTS
+        # Generate audio using XTTS with tuned naturalness parameters
+        # temperature: slight randomness for prosody variation (not flat robotic)
+        # speed: 0.92 gives voice breathing room to sound less rushed
+        # top_k / top_p: focus sampling on likely tokens for coherence
+        # gpt_cond_len: use more of the reference clip for better accent capture
         tts.tts_to_file(
             text=request.text,
             speaker_wav=ref_path,
             language=request.language,
-            file_path=output_filename
+            file_path=output_filename,
+            temperature=0.75,
+            speed=0.92,
+            top_k=50,
+            top_p=0.85,
+            gpt_cond_len=12,
+            repetition_penalty=5.0,
         )
 
         return FileResponse(output_filename, media_type="audio/wav")

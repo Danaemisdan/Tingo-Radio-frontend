@@ -101,11 +101,12 @@ def push_to_liquidsoap_sync(file_path: str):
 
 def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str = ""):
     """
-    Wait for `duration - 15` seconds (min 1 sec).
-    This lets the system start generating the NEXT track while this one finishes, preventing dead air.
+    Wait for the FULL audio duration before returning.
+    This ensures shows and songs always finish fully before the next item is queued.
+    Previously this had a -15s 'overlap' trick but that caused songs to interrupt shows.
     """
-    wait_time = max(1, duration - 15)
-    logger.info(f"⏱  Waiting {wait_time:.0f}s (overlapped) for '{label}' ...")
+    wait_time = max(1, duration)
+    logger.info(f"⏱  Waiting {wait_time:.0f}s for '{label}' to finish ...")
     for _ in range(int(wait_time)):
         if stop_event.is_set():
             return
