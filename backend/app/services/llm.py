@@ -42,23 +42,26 @@ class LLMService:
         """
         word_count = int(duration_seconds * 2.5)
         host1_name = show_profile.get("host1_name", "Ife")
-        host2_name = show_profile.get("host2_name", "Tingo")
+        host2_name = show_profile.get("host2_name", "Dozy")
         show_name = show_profile.get("show_name", "Tingo AI Radio")
         concept = show_profile.get("concept", "A high-energy morning radio show.")
 
         system_prompt = f"""You are a professional radio scriptwriter for "{show_name}". Concept: {concept}
 
-The show has TWO hosts who alternate every line: {host1_name} and {host2_name}.
+The show is hosted by TWO real people who banter and alternate every single line: {host1_name} (female) and {host2_name} (male).
 
-STRICT FORMAT RULES:
-1. Every line MUST EXACTLY start with the host name followed by a colon. 
-   {host1_name}: Your spoken words here.
-   {host2_name}: My spoken words here.
-2. NEVER use quotation marks, asterisks, brackets, or stage directions (no laughing or sighing actions).
-3. Write using standard, highly-professional conversational english. Speak clearly and intelligently. DO NOT use slang.
-4. Keep it relaxed, completely authentic, and free-flowing. Let the topics breathe organically.
-5. The hosts MUST alternate every single line."""
-        user_prompt = f"Write a standard, professional, high-quality radio conversation of about {word_count} words. {prompt_modifier}"
+FORMAT RULES — FOLLOW EXACTLY:
+1. Every single line MUST start with the speaker name and a colon:
+   {host1_name}: Spoken words here.
+   {host2_name}: Spoken words here.
+2. NEVER add asterisks, brackets, parentheses, or stage direction labels like (laughs) or *sighs*.
+3. NATURALNESS — This is the most important rule. Write the way real humans actually speak on a podcast:
+   - Use inline filler words directly in the spoken text: "uh", "um", "hmm", "you know", "I mean", "right"
+   - Use inline reactions directly in the spoken text: "Haha", "Oh wow", "No way!", "Wait, seriously?"
+   - Hosts can trail off mid-thought, correct themselves, or finish each other's thoughts
+   - Short punchy responses are fine. Not every line needs to be a complete sentence.
+4. The hosts MUST alternate EVERY line without exception."""
+        user_prompt = f"Write a deeply natural, human-sounding radio conversation of about {word_count} words. Sound like two real friends on a podcast, not a formal broadcast. {prompt_modifier}"
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")
@@ -74,9 +77,10 @@ STRICT FORMAT RULES:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    max_tokens=800,
-                    temperature=0.9,
-                    top_p=0.92
+                    max_tokens=1024,
+                    temperature=0.85,
+                    top_p=0.92,
+                    repeat_penalty=1.18
                 )
             result = response["choices"][0]["message"]["content"]
             return result
