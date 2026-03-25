@@ -138,18 +138,28 @@ SHOWS_PER_AD = 1
 
 MUSIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/music"))
 
+# Shuffle queue — guarantees zero repeats until every song has played once
+_song_queue: list = []
+
 def get_random_song() -> str:
-    """Returns absolute path to a random mp3 in the music directory."""
+    """Returns songs in shuffled order with zero repeats until the full library cycles."""
+    global _song_queue
     try:
         if not os.path.exists(MUSIC_DIR):
             return ""
-        songs = [f for f in os.listdir(MUSIC_DIR) if f.endswith(".mp3")]
-        if not songs:
+        all_songs = [f for f in os.listdir(MUSIC_DIR) if f.endswith(".mp3")]
+        if not all_songs:
             return ""
-        return os.path.join(MUSIC_DIR, random.choice(songs))
+        # Refill and reshuffle only when queue is empty
+        if not _song_queue:
+            _song_queue = all_songs[:]
+            random.shuffle(_song_queue)
+            logger.info(f"🎵 Song queue refilled and reshuffled: {len(_song_queue)} tracks")
+        return os.path.join(MUSIC_DIR, _song_queue.pop())
     except Exception as e:
         logger.error(f"Error reading music dir: {e}")
         return ""
+
 
 def _automation_loop_sync(stop_event: threading.Event):
     """
