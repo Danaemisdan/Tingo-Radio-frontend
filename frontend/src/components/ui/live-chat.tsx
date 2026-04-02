@@ -104,6 +104,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const [inCall, setInCall] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStatus, setRecordingStatus] = useState<"idle" | "recording" | "sending">("idle");
+  const [showIsLive, setShowIsLive] = useState(false); // true only when a SHOW segment is active
+  const [showName, setShowName] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const lastTsRef = useRef<number>(0);
@@ -152,6 +154,23 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     doPoll();
     return () => { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); };
   }, [visible, doPoll]);
+
+  // Poll /api/status every 5s to know if a show is actively on air
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setShowIsLive(data.is_show_live ?? false);
+          setShowName(data.current_show_name ?? "");
+        }
+      } catch { /* silently ignore */ }
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
+  }, [apiBase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -302,17 +321,18 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             {/* Call Button */}
             <button
               onClick={handleCallToggle}
-              title={isLive ? (inCall ? "End call" : "Call in live — your voice goes on air!") : "Calls available when on air"}
+              title={showIsLive ? (inCall ? "End call" : `Call into ${showName || "the show"} live!`) : "Call In is only active during a show"}
+              disabled={!showIsLive}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                !isLive
-                  ? "bg-white/5 text-white/20 cursor-not-allowed"
+                !showIsLive
+                  ? "bg-white/5 text-white/20 cursor-not-allowed opacity-50"
                   : inCall
                   ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-                  : "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer"
+                  : "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer animate-pulse"
               }`}
             >
               {inCall ? <PhoneOff className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
-              <span>{inCall ? "End" : "Call In"}</span>
+              <span>{inCall ? "End" : showIsLive ? "Call In" : "Off Air"}</span>
             </button>
           </div>
 
