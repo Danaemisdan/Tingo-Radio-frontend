@@ -184,6 +184,46 @@ def _automation_loop_sync(stop_event: threading.Event):
             host2 = current_show.get("host2_name", "Dozy")
             sname = current_show.get("show_name", "Morning Action")
 
+            # ── 0. FAST-TRACK INTERACTIVE BLOCK ───────────────────────
+            # High priority: If a user texted or called, respond IMMEDIATELY
+            interaction = get_next_audience_interaction()
+            if interaction:
+                caller_text = ""
+                if interaction["type"] == "call":
+                    raw_path = interaction["audio_path"]
+                    converted_path = raw_path.replace(".webm", ".mp3")
+                    if raw_path.endswith(".webm"):
+                        try:
+                            # Convert user webm to mp3 for Liquidsoap compliance
+                            import subprocess
+                            subprocess.run(
+                                ["ffmpeg", "-i", raw_path, "-acodec", "libmp3lame", "-y", converted_path],
+                                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                            )
+                            push_to_liquidsoap_sync(converted_path)
+                            _wait_for_overlap(get_audio_duration(converted_path), stop_event, "caller audio")
+                        except Exception as e:
+                            logger.error(f"FFMPEG conversion failed: {e}")
+                    else:
+                        push_to_liquidsoap_sync(raw_path)
+                        _wait_for_overlap(get_audio_duration(raw_path), stop_event, "caller audio")
+                    
+                    caller_text = transcribe_audio(interaction["audio_path"])
+                else:
+                    # Just read the text message
+                    caller_text = interaction["text"]
+
+                if caller_text:
+                    output_name = f"int_resp_{int(time.time())}.mp3"
+                    ai_audio_path = show_generator.generate_interactive_segment_sync(caller_text, current_show, output_name)
+                    
+                    if ai_audio_path:
+                        push_to_liquidsoap_sync(ai_audio_path)
+                        _wait_for_overlap(get_audio_duration(ai_audio_path), stop_event, "interactive response")
+                
+                # Skip the rest of the loop to see if there are more interactions queued
+                continue
+
             # ── 1. SONG BLOCK ─────────────────────────────────────────
             if songs_since_last_show < SONGS_PER_SHOW:
                 song_path = get_random_song()
@@ -212,7 +252,6 @@ def _automation_loop_sync(stop_event: threading.Event):
             songs_since_last_show = 0
 
             # ── 2. SHOW BLOCK ─────────────────────────────────────────
-            interaction = get_next_audience_interaction()
             topics = current_show.get("topics", ["Insane energy in Africa right now!"])
             if sname not in _used_topics or len(_used_topics[sname]) >= len(topics):
                 _used_topics[sname] = []
@@ -221,12 +260,6 @@ def _automation_loop_sync(stop_event: threading.Event):
             _used_topics[sname].append(base_topic)
 
             prompt_modifier = f"The general topic is: {base_topic}. "
-            if interaction:
-                if interaction["type"] == "call":
-                    transcript = transcribe_audio(interaction["audio_path"])
-                    prompt_modifier += f"\\n\\nCRITICAL: A listener called in and said: '{transcript}'. Respond to them directly naturally!"
-                else:
-                    prompt_modifier += f"\\n\\nCRITICAL: A listener sent a live chat: '{interaction['text']}'. Read it on air and respond naturally!"
 
             from .news_scraper import scrape_live_news
             live_news = scrape_live_news(base_topic)
@@ -238,23 +271,6 @@ def _automation_loop_sync(stop_event: threading.Event):
             logger.info(f"Generating Show: {current_show['show_name']} #{show_segment_counter}")
             
             ai_audio_path = show_generator.generate_show_segment_sync(current_show, prompt_modifier, output_name)
-
-            if interaction and interaction["type"] == "call":
-                raw_path = interaction["audio_path"]
-                converted_path = raw_path.replace(".webm", ".mp3")
-                if raw_path.endswith(".webm"):
-                    try:
-                        subprocess.run(
-                            ["ffmpeg", "-i", raw_path, "-acodec", "libmp3lame", "-y", converted_path],
-                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                        )
-                        push_to_liquidsoap_sync(converted_path)
-                        _wait_for_overlap(get_audio_duration(converted_path), stop_event, "caller audio")
-                    except Exception as e:
-                        logger.error(f"FFMPEG conversion failed: {e}")
-                else:
-                    push_to_liquidsoap_sync(raw_path)
-                    _wait_for_overlap(get_audio_duration(raw_path), stop_event, "caller audio")
 
             if ai_audio_path:
                 push_to_liquidsoap_sync(ai_audio_path)

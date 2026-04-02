@@ -48,6 +48,24 @@ class ShowGeneratorService:
 
         return audio_path
 
+    def generate_interactive_segment_sync(self, caller_text: str, show_profile: dict, output_filename: str) -> str:
+        """
+        Ultra-fast show segment for live callers.
+        Skips generic transition logic and goes straight to conversational memory generation.
+        """
+        logger.info(f"Generating Fast-Track interactive response for: '{caller_text[:30]}...'")
+        script = llm_generate.generate_conversational_response(caller_text, show_profile)
+
+        logger.info("Conversational Script generated, synthesizing audio now...")
+        audio_path = synthesize_show_sync(script, output_filename)
+
+        if audio_path:
+            logger.info(f"Interactive generation complete! -> {audio_path}")
+        else:
+            logger.error("Interactive generation failed.")
+
+        return audio_path
+
     # Async shim for any code that still awaits this
     async def generate_show_segment(self, show_profile: dict, topic: str, output_filename: str) -> str:
         return self.generate_show_segment_sync(show_profile, topic, output_filename)
