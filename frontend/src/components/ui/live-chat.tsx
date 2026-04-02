@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Phone, PhoneOff, Zap } from "lucide-react";
+import { Send, Phone, PhoneOff, Zap, Mic, MicOff } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface ChatMessage {
@@ -26,7 +26,7 @@ function getUserColor(name: string): string {
 function getInitials(name: string) {
   return name.slice(0, 2).toUpperCase();
 }
-const AI_NAMES = new Set(["Tingo AI Radio 🤖","Ife (AI Host) 🎙️","Tingo (AI Host) 🎙️"]);
+const AI_NAMES = new Set(["Tingo AI Radio 🤖","Ife (AI Host) 🎙️","Dozy (AI Host) 🎙️"]);
 
 // ── Reaction Emojis ───────────────────────────────────────────────────────────
 const REACTIONS = [
@@ -102,6 +102,10 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const [sending, setSending] = useState(false);
   const [superChatMode, setSuperChatMode] = useState(false);
   const [inCall, setInCall] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState<"idle" | "recording" | "sending">("idle");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const lastTsRef = useRef<number>(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +192,74 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  const startCall = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      // Send each 4-second chunk automatically while they talk
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        audioChunksRef.current = [];
+        if (blob.size > 1000) { // Only send if there's meaningful audio
+          setRecordingStatus("sending");
+          const formData = new FormData();
+          formData.append("audio", blob, "call.webm");
+          try {
+            await fetch(`${apiBase}/api/audience/call`, { method: "POST", body: formData });
+          } catch (err) {
+            console.error("Failed to send call audio:", err);
+          }
+          setRecordingStatus("recording"); // back to recording if still in call
+        }
+        // If still in call, restart recording for next chunk
+        if (mediaRecorderRef.current && isRecording) {
+          audioChunksRef.current = [];
+          mediaRecorderRef.current.start();
+          setTimeout(() => mediaRecorderRef.current?.stop(), 4000);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      // Stop and auto-send every 4 seconds
+      setTimeout(() => recorder.stop(), 4000);
+      setIsRecording(true);
+      setRecordingStatus("recording");
+    } catch (err) {
+      console.error("Mic access denied:", err);
+      alert("Please allow microphone access to call in!");
+      setInCall(false);
+    }
+  };
+
+  const endCall = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      mediaRecorderRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingStatus("idle");
+    setInCall(false);
+  };
+
+  const handleCallToggle = () => {
+    if (!isLive) return;
+    if (inCall) {
+      endCall();
+    } else {
+      setInCall(true);
+      startCall();
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { if (mediaRecorderRef.current) endCall(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!nameSet) {
     return (
       <AnimatePresence>
@@ -229,8 +301,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             </div>
             {/* Call Button */}
             <button
-              onClick={() => isLive && setInCall(prev => !prev)}
-              title={isLive ? (inCall ? "End call" : "Call in") : "Calls available when on air"}
+              onClick={handleCallToggle}
+              title={isLive ? (inCall ? "End call" : "Call in live — your voice goes on air!") : "Calls available when on air"}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 !isLive
                   ? "bg-white/5 text-white/20 cursor-not-allowed"
@@ -251,9 +323,25 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
                 initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden shrink-0"
               >
-                <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-2 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-green-400 text-xs font-medium">You&apos;re live on air — speak up! 🎙️</span>
+                <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-green-400 text-xs font-medium">
+                      {recordingStatus === "sending" ? "Sending to OAPs... 📡" : "You're live — Ife & Dozy are listening! 🎙️"}
+                    </span>
+                  </div>
+                  {/* Mic indicator */}
+                  <div className={`flex items-center gap-1.5 ${
+                    recordingStatus === "recording" ? "text-red-400" : "text-white/30"
+                  }`}>
+                    {recordingStatus === "recording"
+                      ? <Mic className="w-3.5 h-3.5 animate-pulse" />
+                      : <MicOff className="w-3.5 h-3.5" />
+                    }
+                    <span className="text-[10px] font-semibold">
+                      {recordingStatus === "recording" ? "REC" : recordingStatus === "sending" ? "SENDING" : ""}
+                    </span>
+                  </div>
                 </div>
               </motion.div>
             )}
