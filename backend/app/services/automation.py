@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 import json
 from datetime import datetime
 
+# ── Global radio state (read by /api/status endpoint) ─────────────────────────
+_radio_state = {
+    "is_show_live": False,
+    "current_show_name": "",
+    "current_segment": "music"  # "music" | "show" | "ad"
+}
+
+def get_radio_status() -> dict:
+    return _radio_state.copy()
+
 SHOWS_JSON_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../shows.json"))
 
 def load_shows():
@@ -226,6 +236,8 @@ def _automation_loop_sync(stop_event: threading.Event):
 
             # ── 1. SONG BLOCK ─────────────────────────────────────────
             if songs_since_last_show < SONGS_PER_SHOW:
+                _radio_state["is_show_live"] = False
+                _radio_state["current_segment"] = "music"
                 song_path = get_random_song()
                 if song_path:
                     song_name = os.path.basename(song_path).replace(".mp3", "")
@@ -252,6 +264,9 @@ def _automation_loop_sync(stop_event: threading.Event):
             songs_since_last_show = 0
 
             # ── 2. SHOW BLOCK ─────────────────────────────────────────
+            _radio_state["is_show_live"] = True
+            _radio_state["current_show_name"] = sname
+            _radio_state["current_segment"] = "show"
             topics = current_show.get("topics", ["Insane energy in Africa right now!"])
             if sname not in _used_topics or len(_used_topics[sname]) >= len(topics):
                 _used_topics[sname] = []

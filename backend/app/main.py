@@ -6,7 +6,7 @@ import uvicorn
 import logging
 import httpx
 
-from app.services.automation import automation_service
+from app.services.automation import automation_service, get_radio_status
 from app.services.ad_agent import start_ad_pregenerator
 from app.api.websocket import router as websocket_router
 from app.api.chat import router as chat_router
@@ -57,6 +57,11 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/api/status")
+async def radio_status():
+    """Returns current automation state so the frontend can gate the Call In button."""
+    return get_radio_status()
 
 @app.get("/api/stream")
 async def stream_proxy():
