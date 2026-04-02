@@ -21,11 +21,9 @@ export { Skiper25 };
 export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (playing: boolean) => void; volume?: number }) => {
   const bars = 5;
 
-  const getRandomHeights = () => {
-    return Array.from({ length: bars }, () => Math.random() * 0.8 + 0.2);
-  };
-
-  const [heights, setHeights] = useState(getRandomHeights());
+  // Static initial value to prevent SSR/client hydration mismatch (React error #418)
+  // Math.random() in useState causes different values server vs client
+  const [heights, setHeights] = useState(() => Array(bars).fill(0.1) as number[]);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -38,25 +36,9 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
-        // Stream URL priority:
-        // 1. NEXT_PUBLIC_STREAM_URL — explicit separate stream tunnel (optional)
-        // 2. NEXT_PUBLIC_API_URL/api/stream — uses the existing FastAPI proxy (recommended: one tunnel for both)
-        // 3. localhost:8000 — local dev only (will fail on mobile from HTTPS)
-        const apiBase = process.env.NEXT_PUBLIC_API_URL;
-        const streamBase =
-          process.env.NEXT_PUBLIC_STREAM_URL ||
-          (apiBase ? `${apiBase}/api/stream` : null);
-
-        if (!streamBase) {
-          // Local dev fallback
-          audioRef.current.src = `http://localhost:8000/stream?t=${Date.now()}`;
-        } else if (streamBase.includes("/api/stream")) {
-          // API proxy — no extra path suffix needed
-          audioRef.current.src = `${streamBase}?t=${Date.now()}`;
-        } else {
-          // Dedicated stream tunnel pointing at Icecast
-          audioRef.current.src = `${streamBase}/stream?t=${Date.now()}`;
-        }
+        // Always route through FastAPI /api/stream proxy — single URL, no NEXT_PUBLIC_STREAM_URL needed
+        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+        audioRef.current.src = `${apiBase}/api/stream?t=${Date.now()}`;
         audioRef.current.play().catch(console.error);
       } else {
         audioRef.current.pause();
@@ -68,7 +50,8 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
   useEffect(() => {
     if (isPlaying) {
       const waveformIntervalId = setInterval(() => {
-        setHeights(getRandomHeights());
+        // Random heights only generated client side (inside useEffect) to avoid hydration mismatch
+        setHeights(Array.from({ length: bars }, () => Math.random() * 0.8 + 0.2));
       }, 100);
 
       return () => {
