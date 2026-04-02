@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import HeroWave from '@/components/ui/dynamic-wave-canvas-background';
 import { Heart, Share2, ListPlus } from 'lucide-react';
 import { MicroExpander } from '@/components/ui/micro-expander';
@@ -23,11 +23,12 @@ export default function RadioPage() {
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [superChats, setSuperChats] = useState<ChatMessage[]>([]);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  // Detect mobile once at mount to disable expensive GPU effects
-  const [isMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return navigator.maxTouchPoints > 0 || window.innerWidth < 768;
-  });
+  // Always false on first render (matches SSR) — updated after mount to avoid React #418 hydration error
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    setIsMobile(navigator.maxTouchPoints > 0 || window.innerWidth < 768);
+  }, []);
+
 
   const handleFloatingEmoji = useCallback((fe: FloatingEmoji) => {
     setFloatingEmojis(prev => [...prev, fe]);
