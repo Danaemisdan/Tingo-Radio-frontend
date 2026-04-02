@@ -36,9 +36,17 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
-        // Always route through FastAPI /api/stream proxy — single URL, no NEXT_PUBLIC_STREAM_URL needed
+        // Read env vars inside useEffect (client-only) \u2014 safe from hydration issues
+        const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
         const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-        audioRef.current.src = `${apiBase}/api/stream?t=${Date.now()}`;
+
+        if (streamUrl) {
+          // Dedicated Icecast stream tunnel (user-configured)
+          audioRef.current.src = `${streamUrl}/stream?t=${Date.now()}`;
+        } else {
+          // Fallback: FastAPI /api/stream proxy (works with just one CF URL)
+          audioRef.current.src = `${apiBase}/api/stream?t=${Date.now()}`;
+        }
         audioRef.current.play().catch(console.error);
       } else {
         audioRef.current.pause();
@@ -46,6 +54,7 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
       }
     }
   }, [isPlaying]);
+
 
   useEffect(() => {
     if (isPlaying) {

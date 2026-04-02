@@ -117,6 +117,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
 
   const failCountRef = useRef(0);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPollRunningRef = useRef(false); // Prevents concurrent polls causing duplicate messages
 
   const scheduleNextPoll = useCallback((delay: number) => {
     if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
@@ -126,22 +127,32 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doPoll = useCallback(async () => {
+    // Guard: never run two polls simultaneously — this is the root cause of duplicate messages
+    if (isPollRunningRef.current) return;
+    isPollRunningRef.current = true;
     try {
       const res = await fetch(`${apiBase}/api/chat/messages?since=${lastTsRef.current}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.messages?.length > 0) {
-        setMessages(prev => [...prev, ...data.messages].slice(-200));
+        // Update ref FIRST so any concurrent poll that sneaks through won't re-fetch same messages
         lastTsRef.current = data.server_time;
+        setMessages(prev => {
+          // Deduplicate by ts to be bulletproof against any race
+          const existingTs = new Set(prev.map(m => m.ts));
+          const newMsgs = (data.messages as ChatMessage[]).filter(m => !existingTs.has(m.ts));
+          if (newMsgs.length === 0) return prev;
+          return [...prev, ...newMsgs].slice(-200);
+        });
       }
-      // Success → reset backoff
       failCountRef.current = 0;
       scheduleNextPoll(2000);
     } catch {
-      // Failure → exponential backoff: 4s, 8s, 16s, capped at 30s
       failCountRef.current = Math.min(failCountRef.current + 1, 4);
       const delay = Math.min(2000 * Math.pow(2, failCountRef.current), 30_000);
       scheduleNextPoll(delay);
+    } finally {
+      isPollRunningRef.current = false;
     }
   }, [apiBase, scheduleNextPoll]);
 
