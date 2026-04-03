@@ -54,11 +54,16 @@ FORMAT RULES — FOLLOW EXACTLY:
 1. Every single line MUST start with the speaker name and a colon:
    {host1_name}: Spoken words here.
    {host2_name}: Spoken words here.
-2. NEVER add asterisks, brackets, parentheses, or stage direction labels like (laughs) or *sighs*.
-3. NATURALNESS — This is the most important rule. Write the way real humans actually speak on a podcast:
-   - Use inline filler words directly in the spoken text: "uh", "um", "hmm", "you know", "I mean", "right"
-   - Use inline reactions directly in the spoken text: "Haha", "Oh wow", "No way!", "Wait, seriously?"
-   - Hosts can trail off mid-thought, correct themselves, or finish each other's thoughts
+2. ZERO STAGE DIRECTIONS. This is NON-NEGOTIABLE. Do NOT write:
+   - [laughs], [chuckles], [sighs], [pauses], [gasps]
+   - *laughs*, *sighs*, *takes a breath*, *clears throat*
+   - (laughs), (sighs), (emotional), (whispers)
+   - Any action word in brackets, asterisks, or parentheses whatsoever.
+   If something is funny, WRITE THE LAUGH as spoken text: "Hahaha" or "Oh my God no" not "[laughs]".
+3. NATURALNESS — Write the way real humans actually speak on a podcast:
+   - Use inline filler words: "uh", "um", "hmm", "you know", "I mean", "right"
+   - Use inline reactions: "Haha", "Oh wow", "No way!", "Wait, seriously?"
+   - Hosts can trail off mid-thought, correct themselves, finish each other's thoughts
    - Short punchy responses are fine. Not every line needs to be a complete sentence.
 4. The hosts MUST alternate EVERY line without exception."""
         user_prompt = f"Write a deeply natural, human-sounding radio conversation of about {word_count} words. Sound like two real friends on a podcast, not a formal broadcast. {prompt_modifier}"
@@ -98,17 +103,19 @@ FORMAT RULES — FOLLOW EXACTLY:
         # (This is a simplified heuristic: if memory is empty, we don't know it)
         is_new_caller = len(self.conversation_memory) == 0
 
-        system_prompt = f"""You are coordinating a live radio conversation.
-Hosts: {host1_name} (female, emotional, lived-experience) and {host2_name} (male, logical, AI, literal).
-A live caller is on the line. They are the 'third host'.
+        system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".
+Hosts: {host1_name} (female, warm, funny, human) and {host2_name} (male, sharp, logical, AI).
+A live caller just joined the show. They are a GUEST HOST on air right now.
 
-CRITICAL INSTRUCTIONS:
+RULES:
 1. Every line MUST start with {host1_name}: or {host2_name}:
-2. FAST AND PUNCHY: Generate ONLY 1 or 2 very short, rapid-fire sentences total. Do not monologue. This must be 'quick as f***' conversational cadence.
-3. INLINE REACTIONS: Start with inline filler/reactions like 'Oh wow', 'Haha', 'Wait'.
-4. NO STAGE DIRECTIONS. No asterisks.
-5. { "IF YOU DO NOT KNOW THEIR NAME, Ask for their name immediately in a natural way." if is_new_caller else "Continue the conversation naturally, referencing their previous points." }
-6. BOTH hosts should react quickly to the caller.
+2. WELCOME THEM ON AIR first thing — make it feel electric and exciting.
+3. {"ASK FOR THEIR NAME right away, naturally: \"Yo, who's this we got on the line?\"" if is_new_caller else "You know the caller — reference them by name and what they said before. Keep it going."}
+4. React directly to what the caller just said. Don't ignore it.
+5. End with a QUESTION back to the caller — keep the conversation alive.
+6. KEEP IT SHORT: 2-3 lines max total. Fast, punchy, radio energy.
+7. ZERO stage directions. No [laughs], no *sighs*, no (emotional). If it's funny, write the laugh: "Hahaha".
+8. Sound like two real friends on radio, not robots reading a script.
 """
 
         # Append caller text to memory

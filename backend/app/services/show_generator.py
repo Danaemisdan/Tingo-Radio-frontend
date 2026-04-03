@@ -4,10 +4,21 @@ Called from inside daemon threads that have their own event loops.
 No async/await needed here since both LLM and TTS are synchronous operations.
 """
 import logging
+import re
 from .llm import llm_generate
 from .tts import synthesize_show_sync
 
 logger = logging.getLogger(__name__)
+
+# Belt+suspenders: strip stage directions even if LLM ignores the prompt rule
+_STAGE_RE = re.compile(
+    r"\[[^\]]*\]|\*[^*]+\*|\((?:laugh|sigh|pause|breath|chuckle|gasp|whisper|sob|cry|groan|scoff|snort|clear|emotion|nod)[^)]*\)",
+    re.IGNORECASE
+)
+
+def strip_stage_directions(text: str) -> str:
+    cleaned = _STAGE_RE.sub("", text)
+    return re.sub(r"  +", " ", cleaned).strip()
 
 
 import random
@@ -38,6 +49,9 @@ class ShowGeneratorService:
         host1 = show_profile.get("host1_name", "Ife")
         script = f"{host1}: {station_id}\n" + script
 
+        # Strip any stage directions the LLM snuck in (belt+suspenders)
+        script = strip_stage_directions(script)
+
         logger.info("Script generated, synthesizing audio now...")
         audio_path = synthesize_show_sync(script, output_filename)
 
@@ -55,6 +69,7 @@ class ShowGeneratorService:
         """
         logger.info(f"Generating Fast-Track interactive response for: '{caller_text[:30]}...'")
         script = llm_generate.generate_conversational_response(caller_text, show_profile)
+        script = strip_stage_directions(script)  # Never let [laughs] reach TTS
 
         logger.info("Conversational Script generated, synthesizing audio now...")
         audio_path = synthesize_show_sync(script, output_filename)
