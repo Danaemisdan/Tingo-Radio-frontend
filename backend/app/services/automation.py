@@ -299,6 +299,15 @@ def _automation_loop_sync(stop_event: threading.Event):
             _radio_state["is_show_live"] = True
             _radio_state["current_segment"] = "interactive"
             
+            # --- INSTANT INTERRUPTION ---
+            # Instantly kill what's currently playing on air so the caller knows they are in!
+            skip_liquidsoap_track()
+            
+            # Push a generic "patching you through" holding audio to fill the 30s compute gap!
+            hold_audio = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/shows/patching_caller.wav"))
+            if os.path.exists(hold_audio):
+                push_to_liquidsoap_sync(hold_audio)
+            
             interaction = e.interaction
             if interaction["type"] == "call":
                 caller_text = transcribe_audio(interaction["audio_path"])
@@ -306,13 +315,12 @@ def _automation_loop_sync(stop_event: threading.Event):
             else:
                 caller_text = interaction["text"]
             
-            # Generate the response FIRST while the song/old show is still playing!
+            # Now spend 30s generating the real contextual response
             output_name = f"int_resp_{int(time.time())}.mp3"
             ai_audio_path = show_generator.generate_interactive_segment_sync(caller_text, current_show, output_name)
             
             if ai_audio_path:
-                logger.info("Cutting current track to play caller interaction immediately!")
-                skip_liquidsoap_track()      # Instantly kill what's playing
+                logger.info("Playing caller interaction!")
                 push_to_liquidsoap_sync(ai_audio_path) # Drop the interaction in
                 
                 try:
