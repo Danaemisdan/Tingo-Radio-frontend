@@ -208,9 +208,9 @@ def _automation_loop_sync(stop_event: threading.Event):
             host2 = current_show.get("host2_name", "Dozy")
             sname = current_show.get("show_name", "Morning Action")
 
-            # Default state: assume music until we explicitly enter a show block
-            # This ensures the Call In button is only green DURING actual show segments
-            _radio_state["is_show_live"] = False
+            # The user explicitly wants to be able to call in even during a song block
+            # So the Call In button must ALWAYS be active for the interactive override.
+            _radio_state["is_show_live"] = True
             _radio_state["current_segment"] = "music"
             
             # (Interactions are now polled purely inside `_wait_for_overlap` so we don't accidentally check twice and duplicate)
