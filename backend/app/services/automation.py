@@ -109,17 +109,31 @@ def push_to_liquidsoap_sync(file_path: str):
     except Exception as e:
         logger.error(f"Failed to push {file_path} to Liquidsoap: {e}")
 
+def skip_liquidsoap_track():
+    """Tells liquidsoap to instantly skip the currently playing queue item."""
+    try:
+        subprocess.run(["nc", "-w", "1", "127.0.0.1", "1234"], input="show_api.skip\n", capture_output=True)
+    except: pass
+
+class CallerInterruptedException(Exception):
+    def __init__(self, interaction):
+        self.interaction = interaction
+
 def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str = ""):
     """
-    Wait for the FULL audio duration before returning.
-    This ensures shows and songs always finish fully before the next item is queued.
-    Previously this had a -15s 'overlap' trick but that caused songs to interrupt shows.
+    Waits, but returns early so the NEXT generator starts 40s before this track finishes!
+    Also polls for audience interactions every 1 second.
     """
-    wait_time = max(1, duration)
-    logger.info(f"⏱  Waiting {wait_time:.0f}s for '{label}' to finish ...")
+    wait_time = max(1, duration - 40)
+    logger.info(f"⏱  Waiting {wait_time:.0f}s for '{label}'... (-40s pre-buffer overlap)")
     for _ in range(int(wait_time)):
         if stop_event.is_set():
             return
+        
+        interaction = get_next_audience_interaction()
+        if interaction:
+            raise CallerInterruptedException(interaction)
+            
         time.sleep(1)
 
 import speech_recognition as sr
@@ -198,35 +212,9 @@ def _automation_loop_sync(stop_event: threading.Event):
             # This ensures the Call In button is only green DURING actual show segments
             _radio_state["is_show_live"] = False
             _radio_state["current_segment"] = "music"
-
-            # ── 0. FAST-TRACK INTERACTIVE BLOCK ─────────────────────────────
-            # High priority: If a user texted or called, respond IMMEDIATELY
-            interaction = get_next_audience_interaction()
-            if interaction:
-                caller_text = ""
-                if interaction["type"] == "call":
-                    raw_path = interaction["audio_path"]
-                    # Transcribe SILENTLY first — don't put raw caller audio on the stream
-                    # The OAPs will respond to what the caller said, that's what goes on air
-                    caller_text = transcribe_audio(raw_path)
-                    if not caller_text:
-                        caller_text = "Hey, just checking in!"
-                else:
-                    caller_text = interaction["text"]
-
-                if caller_text:
-                    _radio_state["is_show_live"] = True  # Show is live during interactive response
-                    _radio_state["current_segment"] = "interactive"
-                    output_name = f"int_resp_{int(time.time())}.mp3"
-                    ai_audio_path = show_generator.generate_interactive_segment_sync(caller_text, current_show, output_name)
-
-                    if ai_audio_path:
-                        push_to_liquidsoap_sync(ai_audio_path)
-                        _wait_for_overlap(get_audio_duration(ai_audio_path), stop_event, "interactive response")
-
-            # Loop back to check for more interactions before playing music
-                continue
-
+            
+            # (Interactions are now polled purely inside `_wait_for_overlap` so we don't accidentally check twice and duplicate)
+            
             # ── 1. SONG BLOCK ─────────────────────────────────────────
             # Man vs Machine is purely a talk/caller show — zero music interruptions
             songs_limit = 0 if "Man vs Machine" in sname else SONGS_PER_SHOW
@@ -305,6 +293,37 @@ def _automation_loop_sync(stop_event: threading.Event):
                         if ad_path:
                             push_to_liquidsoap_sync(ad_path)
                             _wait_for_overlap(get_audio_duration(ad_path), stop_event, "generated ad")
+
+        except CallerInterruptedException as e:
+            logger.info("🚨 LIVE CALLER DETECTED! Intercepting flow...")
+            _radio_state["is_show_live"] = True
+            _radio_state["current_segment"] = "interactive"
+            
+            interaction = e.interaction
+            if interaction["type"] == "call":
+                caller_text = transcribe_audio(interaction["audio_path"])
+                if not caller_text: caller_text = "Hey, just checking in!"
+            else:
+                caller_text = interaction["text"]
+            
+            # Generate the response FIRST while the song/old show is still playing!
+            output_name = f"int_resp_{int(time.time())}.mp3"
+            ai_audio_path = show_generator.generate_interactive_segment_sync(caller_text, current_show, output_name)
+            
+            if ai_audio_path:
+                logger.info("Cutting current track to play caller interaction immediately!")
+                skip_liquidsoap_track()      # Instantly kill what's playing
+                push_to_liquidsoap_sync(ai_audio_path) # Drop the interaction in
+                
+                try:
+                    _wait_for_overlap(get_audio_duration(ai_audio_path), stop_event, "interactive response")
+                except CallerInterruptedException:
+                    pass # Ignore a caller arriving *during* the interactive segment to prevent infinite loops
+            
+            # As requested: Reset the loop so a new song starts immediately after the conversation ends
+            # (Unless it's Man vs Machine, which skips songs anyway)
+            songs_since_last_show = 0
+            continue
 
         except Exception as e:
             logger.error(f"CRITICAL: Automation loop caught an exception but SURVIVED: {e}", exc_info=True)

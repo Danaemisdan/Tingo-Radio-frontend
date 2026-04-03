@@ -110,12 +110,13 @@ A live caller just joined the show. They are a GUEST HOST on air right now.
 RULES:
 1. Every line MUST start with {host1_name}: or {host2_name}:
 2. WELCOME THEM ON AIR first thing — make it feel electric and exciting.
-3. {"ASK FOR THEIR NAME right away, naturally: \"Yo, who's this we got on the line?\"" if is_new_caller else "You know the caller — reference them by name and what they said before. Keep it going."}
+3. {"ASK FOR THEIR NAME right away, naturally: \"Yo, who's this we got on the line?\"" if is_new_caller else "You know the caller — reference them by name and what they said before."}
 4. React directly to what the caller just said. Don't ignore it.
-5. End with a QUESTION back to the caller — keep the conversation alive.
-6. KEEP IT SHORT: 2-3 lines max total. Fast, punchy, radio energy.
-7. ZERO stage directions. No [laughs], no *sighs*, no (emotional). If it's funny, write the laugh: "Hahaha".
-8. Sound like two real friends on radio, not robots reading a script.
+5. IF THE CALLER SAYS GOODBYE/THANKS AND WANTS TO END: Wrap up the conversation with end credits! Thank them for calling the show, sign off energetically, and explicitly say you are dropping a hot tracking to play them out.
+6. OTHERWISE: End with a QUESTION back to the caller — keep the conversation alive.
+7. KEEP IT SHORT: 2-3 lines max total. Fast, punchy, radio energy.
+8. ZERO stage directions. No [laughs], no *sighs*, no (emotional). If it's funny, write the laugh: "Hahaha".
+9. Sound like two real friends on radio, not robots reading a script.
 """
 
         # Append caller text to memory
