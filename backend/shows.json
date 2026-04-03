@@ -1,5 +1,38 @@
 [
   {
+    "show_name": "Man vs Machine: Test Transmission",
+    "concept": "THE flagship show in test mode. A sharp, witty, personality-driven battle between a human OAP and an AI co-host. This is a live test window for developers. Ife and Dozy are ON and ready to interact with live callers, debate topics, and display the full conversational memory system. Keep the energy high and the responses fast.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "11:10",
+    "end_time": "11:29",
+    "topics": [
+      "Can AI understand love better than people who keep ruining it?",
+      "Who gives better career advice: a human who lived it or a machine that analyzed it?",
+      "Who gives better relationship advice when things go wrong?",
+      "Can a machine understand Nigerian hustle and what it actually takes?"
+    ]
+  },
+  {
+    "show_name": "Man vs Machine",
+    "concept": "THE flagship show. A sharp, witty, personality-driven battle between a human OAP and an AI co-host. Who is smarter? Who is funnier? Who understands people better? Every episode places them in direct competition across debates, challenges, listener interactions, and cultural tests. The entertainment comes from the tension: emotion and instinct versus speed and logic. The audience decides who wins.",
+    "host1_name": "Ife",
+    "host2_name": "Dozy",
+    "start_time": "11:30",
+    "end_time": "12:59",
+    "topics": [
+      "Can AI understand love better than people who keep ruining it?",
+      "Who gives better career advice: a human who lived it or a machine that analyzed it?",
+      "Can AI decode Nigerian slang and culture or will it completely miss the point?",
+      "AI vs human creativity: who writes a better Afrobeats hook?",
+      "Who gives better relationship advice when things go wrong?",
+      "Can a machine understand Nigerian hustle and what it actually takes?",
+      "Human intuition vs AI logic: who makes the better life decision?",
+      "Can AI predict who is lying or is that still a human superpower?",
+      "Who understands heartbreak better: someone who felt it or something that analyzed it?"
+    ]
+  },
+  {
     "show_name": "The Early Bird",
     "concept": "Pre-dawn motivation and positivity. Light conversation, inspiring stories, gentle energy to ease people into their day before the chaos starts.",
     "host1_name": "Ife",
@@ -79,28 +112,13 @@
     "host1_name": "Ife",
     "host2_name": "Dozy",
     "start_time": "11:00",
-    "end_time": "11:59",
+    "end_time": "11:09",
     "topics": [
       "The tweet that broke Nigerian Twitter this week",
       "Celebrity drama: who said what and does it even matter",
       "TikTok Nigeria: the creators who are genuinely popping off right now",
       "Cancel culture hits Nigeria: the discourse nobody can agree on",
       "Viral moment of the week: breakdown and hot takes"
-    ]
-  },
-  {
-    "show_name": "The Midday Report",
-    "concept": "Comprehensive midday news bulletin and analysis. Everything that happened in the last 24 hours, explained with intelligence, wit, and African context. No spin, just signal.",
-    "host1_name": "Ife",
-    "host2_name": "Dozy",
-    "start_time": "12:00",
-    "end_time": "12:59",
-    "topics": [
-      "Today's top Nigeria story and the three things nobody told you about it",
-      "ECOWAS update: what is happening across West Africa right now",
-      "Security and safety in Nigeria: honest conversation",
-      "International news that actually affects the African continent",
-      "Sports update: Nigeria's teams and African football in focus"
     ]
   },
   {
@@ -206,25 +224,6 @@
       "The African creator economy: how content is becoming currency",
       "Cybersecurity in Nigeria: the threats you are ignoring",
       "Will AI replace your job? Real talk for Nigerian professionals in 2025"
-    ]
-  },
-  {
-    "show_name": "Man vs Machine",
-    "concept": "THE flagship show. A sharp, witty, personality-driven battle between a human OAP and an AI co-host. Who is smarter? Who is funnier? Who understands people better? Every episode places them in direct competition across debates, challenges, listener interactions, and cultural tests. The entertainment comes from the tension: emotion and instinct versus speed and logic. The audience decides who wins. This is not a tech demo. This is an entertainment brand.",
-    "host1_name": "Ife",
-    "host2_name": "Dozy",
-    "start_time": "20:00",
-    "end_time": "20:59",
-    "topics": [
-      "Can AI understand love better than people who keep ruining it?",
-      "Who gives better career advice: a human who lived it or a machine that analyzed it?",
-      "Can AI decode Nigerian slang and culture or will it completely miss the point?",
-      "AI vs human creativity: who writes a better Afrobeats hook?",
-      "Who gives better relationship advice when things go wrong?",
-      "Can a machine understand Nigerian hustle and what it actually takes?",
-      "Human intuition vs AI logic: who makes the better life decision?",
-      "Can AI predict who is lying or is that still a human superpower?",
-      "Who understands heartbreak better: someone who felt it or something that analyzed it?"
     ]
   },
   {

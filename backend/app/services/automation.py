@@ -224,11 +224,14 @@ def _automation_loop_sync(stop_event: threading.Event):
                         push_to_liquidsoap_sync(ai_audio_path)
                         _wait_for_overlap(get_audio_duration(ai_audio_path), stop_event, "interactive response")
 
-                # Loop back to check for more interactions before playing music
+            # Loop back to check for more interactions before playing music
                 continue
 
             # ── 1. SONG BLOCK ─────────────────────────────────────────
-            if songs_since_last_show < SONGS_PER_SHOW:
+            # Man vs Machine is purely a talk/caller show — zero music interruptions
+            songs_limit = 0 if "Man vs Machine" in sname else SONGS_PER_SHOW
+
+            if songs_since_last_show < songs_limit:
                 _radio_state["is_show_live"] = False
                 _radio_state["current_segment"] = "music"
                 song_path = get_random_song()
