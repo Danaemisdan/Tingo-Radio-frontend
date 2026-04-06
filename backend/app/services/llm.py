@@ -201,7 +201,15 @@ RULES:
             full_response = ""
             current_sentence = ""
             
-            with self._lock:
+            acquired = self._lock.acquire(timeout=0.1)
+            if not acquired:
+                logger.warning("LLM lock busy (background generation running) — yielding canned caller welcome stream!")
+                canned = f"{host1_name}: Yo, hold that thought! We have a caller on the line right now. Who is this?"
+                yield canned
+                self.conversation_memory.append({"role": "assistant", "content": canned})
+                return
+                
+            try:
                 stream = self.llm.create_chat_completion(
                     messages=messages,
                     max_tokens=150,
@@ -226,6 +234,8 @@ RULES:
                 
                 if current_sentence.strip():
                     yield current_sentence.strip()
+            finally:
+                self._lock.release()
             
             self.conversation_memory.append({"role": "assistant", "content": full_response})
 

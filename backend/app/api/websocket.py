@@ -5,7 +5,7 @@ import os
 import asyncio
 from app.services.stt import stt_service
 from app.services.llm import llm_generate
-from app.services.automation import push_to_liquidsoap_sync
+from app.services.automation import push_to_liquidsoap_sync, skip_liquidsoap_track, _radio_state
 from app.services.tts import generate_line_audio_sync, SHOWS_DIR, VOICE_MAP
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,11 @@ async def live_call_endpoint(websocket: WebSocket):
             # 1. We receive WebM audio chunks ~every 2 seconds from the browser
             data = await websocket.receive_bytes()
             if not data: continue
+            
+            # Immediately tell backend we are aggressively in interactive mode
+            _radio_state["is_show_live"] = True
+            _radio_state["current_segment"] = "interactive"
+            skip_liquidsoap_track()
             
             # 2. Fast STT
             transcript = stt_service.transcribe_audio_chunk(data)
