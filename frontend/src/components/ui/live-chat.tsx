@@ -111,6 +111,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const [showName, setShowName] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  // isRecordingRef mirrors isRecording state but is accessible inside closures without stale captures
+  const isRecordingRef = useRef(false);
   const lastTsRef = useRef<number>(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -240,7 +242,11 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
-      // Send each 4-second chunk automatically while they talk
+
+      // onstop fires every 4 seconds. CRITICAL: use isRecordingRef.current NOT the isRecording
+      // state variable — the state is a stale closure that always reads the initial `false` value
+      // from the time startCall() was defined, causing the loop to silently die after the
+      // very first chunk and never send any subsequent voice audio to the backend.
       recorder.onstop = async () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         audioChunksRef.current = [];
@@ -253,25 +259,28 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
           } catch (err) {
             console.error("Failed to send call audio:", err);
           }
-          setRecordingStatus("recording"); // back to recording if still in call
+          setRecordingStatus("recording");
         }
-        // If still in call, restart recording for next chunk
-        if (mediaRecorderRef.current && isRecording) {
+        // Use the REF (not state) to check if still in call — avoids stale closure bug
+        if (mediaRecorderRef.current && isRecordingRef.current) {
           audioChunksRef.current = [];
           mediaRecorderRef.current.start();
           setTimeout(() => mediaRecorderRef.current?.stop(), 4000);
         }
       };
+
       mediaRecorderRef.current = recorder;
       recorder.start();
       // Stop and auto-send every 4 seconds
       setTimeout(() => recorder.stop(), 4000);
+      isRecordingRef.current = true;   // Set ref BEFORE state so onstop closure sees it immediately
       setIsRecording(true);
       setRecordingStatus("recording");
       window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: true }));
     } catch (err) {
       console.error("Mic access denied:", err);
       alert("Please allow microphone access to call in!");
+      isRecordingRef.current = false;
       setInCall(false);
     }
   };
@@ -281,18 +290,16 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const [passcodeInput, setPasscodeInput] = useState("");
 
   const endCall = () => {
+    isRecordingRef.current = false;  // Kill the onstop restart loop immediately
+    setIsRecording(false);
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
       mediaRecorderRef.current = null;
     }
-    setIsRecording(false);
     setRecordingStatus("idle");
     setInCall(false);
-    // Restore the stream volume — never paused, just ducked to 35% during call.
-    // DO NOT dispatch radio-force-sync here: resetting the src URL kills the live
-    // stream connection and causes the 'music stops after call' bug.
+    // Restore stream volume — never paused, just ducked to 35% during call
     window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: false }));
-    // Signal backend to exit call session immediately (don't wait for 30s idle timeout)
     fetch(`${apiBase}/api/audience/end-call`, { method: "POST" }).catch(() => {});
   };
 
@@ -357,14 +364,16 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             {/* Call Button */}
             <button
               onClick={handleCallToggle}
-              title={isLive ? (inCall ? "End call" : `Call into ${showName || "the show"} live!`) : "Play the radio first to call in"}
+              title={inCall ? "End call" : isLive ? `Call into ${showName || "the radio"} live!` : "Play the radio first to call in"}
               disabled={!isLive && !inCall}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 (!isLive && !inCall)
                   ? "bg-white/5 text-white/20 cursor-not-allowed opacity-50"
                   : inCall
                   ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-                  : "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer animate-pulse"
+                  : showIsLive
+                  ? "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer animate-pulse"
+                  : "bg-white/5 text-white/40 border border-white/10 cursor-pointer hover:bg-white/10"
               }`}
             >
               {inCall ? <PhoneOff className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
