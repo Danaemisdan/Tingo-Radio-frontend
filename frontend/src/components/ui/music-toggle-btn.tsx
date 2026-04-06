@@ -93,11 +93,19 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
       const customEvent = e as CustomEvent;
       if (audioRef.current) {
         if (customEvent.detail === true) {
-          // Keep stream audible at 35% so caller can HEAR the AI OAP respond.
-          // Echo cancellation on the mic (set in live-chat.tsx) prevents feedback.
-          audioRef.current.volume = 0.35;
+          // Complete cut-off of the Icecast stream during a live call.
+          // We rely exclusively on the WebSocket for sub-second conversational audio.
+          audioRef.current.pause();
+          audioRef.current.src = "";
         } else {
+          // Call ended, resume the main broadcast
           audioRef.current.volume = Math.max(0, Math.min(1, (volume ?? 50) / 100));
+          if (isPlaying) {
+            const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
+            const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+            audioRef.current.src = streamUrl ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
+            audioRef.current.play().catch(() => {});
+          }
         }
       }
     };

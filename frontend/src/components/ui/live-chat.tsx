@@ -113,6 +113,11 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const audioChunksRef = useRef<Blob[]>([]);
   // isRecordingRef mirrors isRecording state but is accessible inside closures without stale captures
   const isRecordingRef = useRef(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioQueueRef = useRef<AudioBuffer[]>([]);
+  const isPlayingRef = useRef(false);
+  
   const lastTsRef = useRef<number>(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -227,53 +232,76 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  const playNextAudio = () => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0 || !audioContextRef.current) return;
+    isPlayingRef.current = true;
+    const buffer = audioQueueRef.current.shift()!;
+    const source = audioContextRef.current.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContextRef.current.destination);
+    source.onended = () => {
+      isPlayingRef.current = false;
+      playNextAudio();
+    };
+    source.start(0);
+  };
+
   const startCall = async () => {
     try {
-      // Enable echo cancellation so the AI's voice through speakers doesn't bleed into the mic
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
+      
+      // Initialize AudioContext seamlessly after user gesture (startCall click)
+      if (!audioContextRef.current || audioContextRef.current.state === "closed") {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } else if (audioContextRef.current.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+      
+      const wsUrl = apiBase.replace("http", "ws") + "/ws/live_call";
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onmessage = async (event) => {
+        // If the backend streams binary audio chunks back, decode and push to play queue
+        if (event.data instanceof Blob) {
+           const arrayBuffer = await event.data.arrayBuffer();
+           audioContextRef.current?.decodeAudioData(arrayBuffer, (buffer) => {
+             audioQueueRef.current.push(buffer);
+             playNextAudio();
+           });
+        } else if (typeof event.data === "string") {
+           // We can also route STT output or status texts here later
+           console.log("WebSocket Message:", event.data);
+        }
+      };
+
       audioChunksRef.current = [];
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      // onstop fires every 4 seconds. CRITICAL: use isRecordingRef.current NOT the isRecording
-      // state variable — the state is a stale closure that always reads the initial `false` value
-      // from the time startCall() was defined, causing the loop to silently die after the
-      // very first chunk and never send any subsequent voice audio to the backend.
       recorder.onstop = async () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         audioChunksRef.current = [];
-        if (blob.size > 0) { // Fix: Allow small compressed webm chunks to pass through
+        if (blob.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
           setRecordingStatus("sending");
-          const formData = new FormData();
-          formData.append("audio", blob, "call.webm");
-          try {
-            await fetch(`${apiBase}/api/audience/call`, { method: "POST", body: formData });
-          } catch (err) {
-            console.error("Failed to send call audio:", err);
-          }
+          wsRef.current.send(blob);
           setRecordingStatus("recording");
         }
-        // Use the REF (not state) to check if still in call — avoids stale closure bug
         if (mediaRecorderRef.current && isRecordingRef.current) {
           audioChunksRef.current = [];
           mediaRecorderRef.current.start();
-          setTimeout(() => mediaRecorderRef.current?.stop(), 4000);
+          setTimeout(() => mediaRecorderRef.current?.stop(), 2000); // 2-second fast chunks for streaming
         }
       };
 
       mediaRecorderRef.current = recorder;
       recorder.start();
-      // Stop and auto-send every 4 seconds
-      setTimeout(() => recorder.stop(), 4000);
-      isRecordingRef.current = true;   // Set ref BEFORE state so onstop closure sees it immediately
+      setTimeout(() => recorder.stop(), 2000);
+      
+      isRecordingRef.current = true;
       setIsRecording(true);
       setRecordingStatus("recording");
       window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: true }));
@@ -297,8 +325,11 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
       mediaRecorderRef.current = null;
     }
     setRecordingStatus("idle");
-    setInCall(false);
-    // Restore stream volume — never paused, just ducked to 35% during call
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    // Restore stream volume — backend disconnects websocket, and frontend stream resumes
     window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: false }));
     fetch(`${apiBase}/api/audience/end-call`, { method: "POST" }).catch(() => {});
   };
