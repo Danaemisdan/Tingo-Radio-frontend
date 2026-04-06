@@ -41,9 +41,19 @@ async def live_call_endpoint(websocket: WebSocket):
             if not data: continue
             
             # Immediately tell backend we are aggressively in interactive mode
-            _radio_state["is_show_live"] = True
-            _radio_state["current_segment"] = "interactive"
-            skip_liquidsoap_track()
+            if _radio_state["current_segment"] != "interactive":
+                _radio_state["is_show_live"] = True
+                _radio_state["current_segment"] = "interactive"
+                skip_liquidsoap_track()
+                
+                # Push silence to the underlying show queue.
+                # If we don't do this, every microsecond of silence between the AI's words will
+                # cause Liquidsoap to fall backward to the music playlist!
+                silence_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/silence_120s.wav"))
+                if not os.path.exists(silence_path):
+                    from pydub import AudioSegment as _AS
+                    _AS.silent(duration=120000).export(silence_path, format="wav")
+                push_to_liquidsoap_sync(silence_path, queue_name="show_api")
             
             # 2. Fast STT
             transcript = stt_service.transcribe_audio_chunk(data)
