@@ -250,7 +250,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
       recorder.onstop = async () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         audioChunksRef.current = [];
-        if (blob.size > 1000) { // Only send if there's meaningful audio
+        if (blob.size > 0) { // Fix: Allow small compressed webm chunks to pass through
           setRecordingStatus("sending");
           const formData = new FormData();
           formData.append("audio", blob, "call.webm");
@@ -304,7 +304,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   };
 
   const handleCallToggle = () => {
-    if (!isLive && !inCall) return;
+    if (!showIsLive && !inCall) return;
     if (inCall) {
       endCall();
     } else {
@@ -364,16 +364,14 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             {/* Call Button */}
             <button
               onClick={handleCallToggle}
-              title={inCall ? "End call" : isLive ? `Call into ${showName || "the radio"} live!` : "Play the radio first to call in"}
-              disabled={!isLive && !inCall}
+              title={inCall ? "End call" : showIsLive ? `Call into ${showName || "the show"} live!` : "Call In is only active during a show"}
+              disabled={!showIsLive && !inCall}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                (!isLive && !inCall)
+                (!showIsLive && !inCall)
                   ? "bg-white/5 text-white/20 cursor-not-allowed opacity-50"
                   : inCall
                   ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-                  : showIsLive
-                  ? "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer animate-pulse"
-                  : "bg-white/5 text-white/40 border border-white/10 cursor-pointer hover:bg-white/10"
+                  : "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer animate-pulse"
               }`}
             >
               {inCall ? <PhoneOff className="w-3 h-3" /> : <Phone className="w-3 h-3" />}

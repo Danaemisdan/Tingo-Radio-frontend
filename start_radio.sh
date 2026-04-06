@@ -13,4 +13,4 @@ bash "$PROJECT_DIR/backend/start_radio.sh"
 
 echo ""
 echo "📱 Frontend is LIVE at: http://localhost:3001"
-echo "To stop everything, run: pkill -9 -f 'uvicorn|liquidsoap|icecast|cloudflared|next|nc'"
+echo "To stop everything, run: ./stop_radio.sh"
