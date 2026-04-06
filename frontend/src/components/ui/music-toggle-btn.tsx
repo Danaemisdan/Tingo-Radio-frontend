@@ -93,7 +93,9 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
       const customEvent = e as CustomEvent;
       if (audioRef.current) {
         if (customEvent.detail === true) {
-          audioRef.current.volume = 0; // Fully mute during call — prevents hearing yourself echoed back via Icecast buffer
+          // Keep stream audible at 35% so caller can HEAR the AI OAP respond.
+          // Echo cancellation on the mic (set in live-chat.tsx) prevents feedback.
+          audioRef.current.volume = 0.35;
         } else {
           audioRef.current.volume = Math.max(0, Math.min(1, (volume ?? 50) / 100));
         }

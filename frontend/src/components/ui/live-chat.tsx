@@ -227,7 +227,14 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
 
   const startCall = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Enable echo cancellation so the AI's voice through speakers doesn't bleed into the mic
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
       audioChunksRef.current = [];
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       recorder.ondataavailable = (e) => {
