@@ -375,10 +375,28 @@ def _automation_loop_sync(stop_event: threading.Event):
                     resp_dur = get_audio_duration(ai_audio_path)
                     logger.info(f"✅ AI response on air! Duration: {resp_dur:.1f}s")
                     time.sleep(max(0, resp_dur - 2))
+                    # FLUSH OFF STALE CHUNKS HERE to prevent transcription backlog latency
+                    import app.api.interactive as int_api
+                    if "calls" in int_api.audience_queue:
+                        int_api.audience_queue["calls"].clear()
                 else:
                     logger.error("AI response generation failed — no audio produced")
             except Exception as ex:
                 logger.error(f"Interactive response error: {ex}")
+
+            def _do_farewell():
+                logger.info("📞 Caller silent or limit hit — AI signing off")
+                try:
+                    fp = show_generator.generate_interactive_segment_sync(
+                        "The caller has gone quiet or time is up. Wrap up warmly, thank them for calling Tingo AI Radio, and say you're heading back to the music.",
+                        current_show,
+                        f"farewell_{int(time.time())}.mp3"
+                    )
+                    if fp and os.path.exists(fp):
+                        push_to_liquidsoap_sync(fp, queue_name="interactive_api")
+                        time.sleep(max(0, get_audio_duration(fp) - 1))
+                except Exception as ex:
+                    logger.error(f"Auto-farewell failed: {ex}")
 
             # STEP 4: Timed call session loop.
             # Previous code broke immediately if the queue was empty — it never waited for
@@ -404,6 +422,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                 # 3-minute hard cap
                 if time.time() - call_start > MAX_CALL_DURATION:
                     logger.info("📞 3-min call limit hit — auto-ending")
+                    _do_farewell()
                     break
 
                 # Refresh show_api silence every 90s (prevents music fallback)
@@ -413,7 +432,6 @@ def _automation_loop_sync(stop_event: threading.Event):
 
                 next_chunk = get_next_audience_interaction()
                 if next_chunk:
-                    last_chunk_time = time.time()
                     if next_chunk["type"] != "call":
                         break  # Text message, not audio — exit call mode
 
@@ -423,6 +441,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                         time.sleep(1)
                         continue
 
+                    last_chunk_time = time.time()
                     logger.info(f"📞 Follow-up chunk: '{chunk_text[:50]}'")
                     is_goodbye = any(w in chunk_text.lower() for w in GOODBYE_WORDS)
 
@@ -450,6 +469,10 @@ def _automation_loop_sync(stop_event: threading.Event):
                             push_to_liquidsoap_sync(reply_path, queue_name="interactive_api")
                             dur = get_audio_duration(reply_path)
                             time.sleep(max(0, dur - 2))
+                            # FLUSH OFF STALE CHUNKS
+                            import app.api.interactive as int_api
+                            if "calls" in int_api.audience_queue:
+                                int_api.audience_queue["calls"].clear()
                     except Exception as ex:
                         logger.error(f"Follow-up response error: {ex}")
 
@@ -461,17 +484,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                     idle_secs = time.time() - last_chunk_time
                     if idle_secs >= CALL_IDLE_TIMEOUT:
                         logger.info(f"📞 Caller silent {idle_secs:.0f}s — AI signing off")
-                        try:
-                            farewell_path = show_generator.generate_interactive_segment_sync(
-                                "The caller has gone quiet. Wrap up warmly, thank them for calling Tingo AI Radio, and say you're heading back to the music.",
-                                current_show,
-                                f"farewell_{int(time.time())}.mp3"
-                            )
-                            if farewell_path and os.path.exists(farewell_path):
-                                push_to_liquidsoap_sync(farewell_path, queue_name="interactive_api")
-                                time.sleep(max(0, get_audio_duration(farewell_path) - 1))
-                        except Exception as ex:
-                            logger.error(f"Auto-farewell failed: {ex}")
+                        _do_farewell()
                         break
                     time.sleep(1)
 

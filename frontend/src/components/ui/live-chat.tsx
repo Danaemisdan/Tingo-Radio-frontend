@@ -288,14 +288,16 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     setIsRecording(false);
     setRecordingStatus("idle");
     setInCall(false);
+    // Restore the stream volume — never paused, just ducked to 35% during call.
+    // DO NOT dispatch radio-force-sync here: resetting the src URL kills the live
+    // stream connection and causes the 'music stops after call' bug.
     window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: false }));
-    window.dispatchEvent(new CustomEvent('radio-force-sync'));
     // Signal backend to exit call session immediately (don't wait for 30s idle timeout)
     fetch(`${apiBase}/api/audience/end-call`, { method: "POST" }).catch(() => {});
   };
 
   const handleCallToggle = () => {
-    if (!isLive) return;
+    if (!isLive && !inCall) return;
     if (inCall) {
       endCall();
     } else {
@@ -355,7 +357,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             {/* Call Button */}
             <button
               onClick={handleCallToggle}
-              title={showIsLive ? (inCall ? "End call" : `Call into ${showName || "the show"} live!`) : "Call In is only active during a show"}
+              title={isLive ? (inCall ? "End call" : `Call into ${showName || "the show"} live!`) : "Play the radio first to call in"}
               disabled={!isLive && !inCall}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 (!isLive && !inCall)
