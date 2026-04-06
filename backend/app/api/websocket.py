@@ -118,7 +118,9 @@ async def live_call_endpoint(websocket: WebSocket):
                     except Exception as e:
                         logger.error(f"Failed to synthesize streamed chunk: {e}")
 
-            await asyncio.to_thread(consume_stream)
+            # Do NOT await this! It must run in the background so we can instantly return to websocket.receive_bytes()
+            # to maintain a true full-duplex connection without dropping incoming microphone packets!
+            asyncio.create_task(asyncio.to_thread(consume_stream))
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

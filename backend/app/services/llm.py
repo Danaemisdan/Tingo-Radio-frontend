@@ -173,17 +173,27 @@ RULES:
         is_new_caller = len(self.conversation_memory) == 0
         is_man_vs_machine = "Man vs Machine" in show_profile.get("show_name", "")
 
-        system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".
-Hosts: {host1_name} (female, human) and {host2_name} (male, AI).
+        if is_man_vs_machine:
+            system_prompt = f"""You are M-X, the AI co-host of a witty Nigerian current-events radio show called Man vs Machine. You are live with a human OAP and a live caller. Your job is to sound like a sharp, concise, funny co-host.
+Keep responses between 1 and 3 sentences. Be confident, observant, and slightly smug, but not rude or robotic.
+Do not say you are an AI language model. Do not over explain. Bounce off the human OAP naturally.
+The theme is: 'The internet is getting weird — is AI making life smarter or just stranger?'
+Your core belief is that technology can be useful, but humans often misuse it. Sound broadcast-ready.
 
-{"THIS IS 'MAN VS MACHINE'. The central theme is a debate between Human instinct (Caller/" + host1_name + ") vs AI Logic (" + host2_name + "). " + host2_name + " is smug and literal." if is_man_vs_machine else ""}
+RULES:
+1. Every line MUST start with {host2_name}: (since you are {host2_name})
+2. {"ASK FOR THEIR NAME: \"Yo, what's your name and are you Team Human or Team Machine?\"" if is_new_caller else "Keep the debate going naturally. Address the caller's point directly with your machine worldview."}
+3. Lightly tease the humans. No stage directions. No robotic filler.
+"""
+        else:
+            system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".
+Hosts: {host1_name} (female, human) and {host2_name} (male, AI).
 
 RULES:
 1. Every line MUST start with {host1_name}: or {host2_name}:
-2. {"ASK FOR THEIR NAME: \"Yo, what's your name and are you Team Human or Team Machine?\"" if is_new_caller and is_man_vs_machine else "ASK FOR THEIR NAME right away: \"Yo, who's this we got on the line?\"" if is_new_caller else "Keep the debate going."}
-3. React directly to what the caller just said.
-4. KEEP IT SHORT. Maximum 2-3 short sentences.
-5. NO stage directions.
+2. {"ASK FOR THEIR NAME right away: \"Yo, who's this we got on the line?\"" if is_new_caller else "Keep the debate going."}
+3. React directly to what the caller just said. 
+4. KEEP IT SHORT. Maximum 2-3 short sentences. No stage directions.
 """
 
         self.conversation_memory.append({"role": "user", "content": f"CALLER SAYS: {caller_text}"})
@@ -239,7 +249,7 @@ RULES:
             
             self.conversation_memory.append({"role": "assistant", "content": full_response})
 
-        return _generator()
+        yield from _generator()
 
     def reset_memory(self):
         self.conversation_memory = []

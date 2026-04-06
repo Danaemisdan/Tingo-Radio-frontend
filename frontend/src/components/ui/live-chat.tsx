@@ -320,6 +320,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const endCall = () => {
     isRecordingRef.current = false;  // Kill the onstop restart loop immediately
     setIsRecording(false);
+    setInCall(false); // Fix: Reset the UI state immediately back to Call In
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
       mediaRecorderRef.current = null;
