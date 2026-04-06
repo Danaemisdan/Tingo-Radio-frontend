@@ -34,6 +34,24 @@ if not os.path.exists("outputs"):
 VOICES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../media/voices"))
 os.makedirs(VOICES_DIR, exist_ok=True)
 
+# ---------------------------------------------------------
+# Sub-Second Optimization: Precompute Speaker Latents
+# ---------------------------------------------------------
+speaker_latents = {}
+import torchaudio
+
+print("Precomputing speaker latents for ZERO-LATENCY streaming inference...")
+for vfile in os.listdir(VOICES_DIR):
+    if vfile.endswith(".wav"):
+        try:
+            ref_path = os.path.join(VOICES_DIR, vfile)
+            print(f"Caching latents for {vfile}...")
+            gpt_cond_latent, speaker_embedding = tts.synthesizer.tts_model.get_conditioning_latents(audio_path=[ref_path])
+            speaker_latents[vfile] = (gpt_cond_latent, speaker_embedding)
+        except Exception as e:
+            print(f"Failed to precompute latents for {vfile}: {e}")
+print("Precomputation complete.")
+
 @app.post("/synthesize")
 async def synthesize(request: SynthesizeRequest):
     try:
@@ -44,23 +62,33 @@ async def synthesize(request: SynthesizeRequest):
 
         output_filename = f"outputs/output_{uuid.uuid4().hex[:8]}.wav"
 
-        # Generate audio using XTTS with tuned naturalness parameters
-        # temperature: slight randomness for prosody variation (not flat robotic)
-        # speed: 0.92 gives voice breathing room to sound less rushed
-        # top_k / top_p: focus sampling on likely tokens for coherence
-        # gpt_cond_len: use more of the reference clip for better accent capture
-        tts.tts_to_file(
-            text=request.text,
-            speaker_wav=ref_path,
-            language=request.language,
-            file_path=output_filename,
-            temperature=0.75,
-            speed=0.92,
-            top_k=50,
-            top_p=0.85,
-            gpt_cond_len=12,
-            repetition_penalty=5.0,
-        )
+        # Ultra-Fast Latent Cached Inference
+        if request.speaker_wav in speaker_latents:
+            gpt_cond_latent, speaker_embedding = speaker_latents[request.speaker_wav]
+            
+            out = tts.synthesizer.tts_model.inference(
+                request.text,
+                request.language,
+                gpt_cond_latent,
+                speaker_embedding,
+                temperature=0.75,
+                speed=0.92,
+                top_k=50,
+                top_p=0.85,
+                repetition_penalty=5.0
+            )
+            wav_tensor = torch.tensor(out["wav"]).unsqueeze(0)
+            torchaudio.save(output_filename, wav_tensor, 24000)
+        else:
+            # Fallback to high-level API if cache missed
+            tts.tts_to_file(
+                text=request.text,
+                speaker_wav=ref_path,
+                language=request.language,
+                file_path=output_filename,
+                temperature=0.75,
+                speed=0.92
+            )
 
         return FileResponse(output_filename, media_type="audio/wav")
 

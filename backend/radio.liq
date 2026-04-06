@@ -11,6 +11,10 @@ set("server.telnet.port", 1234)
 # Python automation pushes: song intros, songs, show segments here in sequence
 show_api = request.queue(id="show_api")
 
+# --- Source 1.5: Interactive Live Conversational Queue (ULTRA PRIORITY) ---
+# Used exclusively for sentence-by-sentence streaming (zero crossfade)
+interactive_api = request.queue(id="interactive_api")
+
 # --- Source 2: Music fallback playlist ---
 # Plays automatically from the music folder when nothing is in the AI queue
 music_fallback = playlist(
@@ -34,11 +38,12 @@ crossed_music = crossfade(
 )
 
 # --- Priority Mixing ---
-# When AI queue has content it plays first.
-# If the AI queue is empty, music_fallback takes over seamlessly.
+# When interactive queue has content it plays instantly without crossfade
+# If interactive queue is empty, crossed_show takes over
+# If AI queue is empty, music_fallback takes over seamlessly.
 radio_stream = fallback(
   track_sensitive=false,
-  [crossed_show, crossed_music, blank()]
+  [interactive_api, crossed_show, crossed_music, blank()]
 )
 
 # --- Icecast Output ---

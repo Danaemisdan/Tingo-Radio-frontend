@@ -90,15 +90,18 @@ function NamePicker({ onDone }: { onDone: (name: string) => void }) {
 export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }: LiveChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  // Persist username in localStorage so we never ask again after first join
-  const [username, setUsername] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("tingo_chat_username") || "";
-  });
-  const [nameSet, setNameSet] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return !!(localStorage.getItem("tingo_chat_username"));
-  });
+  const [username, setUsername] = useState<string>("");
+  const [nameSet, setNameSet] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tingo_chat_username");
+      if (saved) {
+        setUsername(saved);
+        setNameSet(true);
+      }
+    }
+  }, []);
   const [sending, setSending] = useState(false);
   const [superChatMode, setSuperChatMode] = useState(false);
   const [inCall, setInCall] = useState(false);
@@ -265,6 +268,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     }
   };
 
+  const [isAuthenticatedOap, setIsAuthenticatedOap] = useState(false);
+
   const endCall = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
@@ -280,6 +285,15 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     if (inCall) {
       endCall();
     } else {
+      if (!isAuthenticatedOap) {
+        const code = window.prompt("OAP Passcode required to unlock broadcast line:");
+        if (code === "TINGOOAP") {
+          setIsAuthenticatedOap(true);
+        } else {
+          window.alert("Unauthorized. Incorrect passcode.");
+          return;
+        }
+      }
       setInCall(true);
       startCall();
     }

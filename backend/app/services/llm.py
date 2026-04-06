@@ -103,20 +103,24 @@ FORMAT RULES — FOLLOW EXACTLY:
         # (This is a simplified heuristic: if memory is empty, we don't know it)
         is_new_caller = len(self.conversation_memory) == 0
 
+        is_man_vs_machine = "Man vs Machine" in show_profile.get("show_name", "")
+
         system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".
 Hosts: {host1_name} (female, warm, funny, human) and {host2_name} (male, sharp, logical, AI).
 A live caller just joined the show. They are a GUEST HOST on air right now.
 
+{"THIS IS 'MAN VS MACHINE'. The central theme is a debate between Human instinct/emotion (represented by the Caller and " + host1_name + ") vs Artificial Intelligence/Logic (represented by " + host2_name + "). " + host2_name + " should be slightly smug, highly intelligent, and literal, while " + host1_name + " should defend the human side." if is_man_vs_machine else ""}
+
 RULES:
 1. Every line MUST start with {host1_name}: or {host2_name}:
 2. WELCOME THEM ON AIR first thing — make it feel electric and exciting.
-3. {"ASK FOR THEIR NAME right away, naturally: \"Yo, who's this we got on the line?\"" if is_new_caller else "You know the caller — reference them by name and what they said before."}
-4. React directly to what the caller just said. Don't ignore it.
-5. IF THE CALLER SAYS GOODBYE/THANKS AND WANTS TO END: Wrap up the conversation with end credits! Thank them for calling the show, sign off energetically, and explicitly say you are dropping a hot tracking to play them out.
-6. OTHERWISE: End with a QUESTION back to the caller — keep the conversation alive.
+3. {"ASK FOR THEIR NAME right away: \"Yo, what's your name and are you Team Human or Team Machine?\"" if is_new_caller and is_man_vs_machine else "ASK FOR THEIR NAME right away: \"Yo, who's this we got on the line?\"" if is_new_caller else "You know the caller — reference them by name and what they said. Keep the debate going."}
+4. React directly to what the caller just said. Challenge them playfully.
+5. IF THE CALLER SAYS GOODBYE/THANKS: Wrap up the conversation with end credits! Thank them for calling, sign off energetically, and say you're dropping a hot track to play them out.
+6. OTHERWISE: End with a QUESTION back to the caller — keep the debate alive.
 7. KEEP IT SHORT: 2-3 lines max total. Fast, punchy, radio energy.
-8. ZERO stage directions. No [laughs], no *sighs*, no (emotional). If it's funny, write the laugh: "Hahaha".
-9. Sound like two real friends on radio, not robots reading a script.
+8. ZERO stage directions. No [laughs], no *sighs*. If funny, write loosely: "Hahaha".
+9. Sound like real radio hosts, not robots reading a script.
 """
 
         # Append caller text to memory
@@ -150,6 +154,74 @@ RULES:
         except Exception as e:
             logger.error(f"Conv Gen Failed: {e}")
             return f"{host1_name}: Haha, definitely."
+
+    def generate_conversational_response_stream(self, caller_text: str, show_profile: dict):
+        """
+        Sub-Second Streaming conversational mode. Yields complete sentences one by one.
+        """
+        host1_name = show_profile.get("host1_name", "Ife")
+        host2_name = show_profile.get("host2_name", "Dozy")
+        
+        is_new_caller = len(self.conversation_memory) == 0
+        is_man_vs_machine = "Man vs Machine" in show_profile.get("show_name", "")
+
+        system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".
+Hosts: {host1_name} (female, human) and {host2_name} (male, AI).
+
+{"THIS IS 'MAN VS MACHINE'. The central theme is a debate between Human instinct (Caller/" + host1_name + ") vs AI Logic (" + host2_name + "). " + host2_name + " is smug and literal." if is_man_vs_machine else ""}
+
+RULES:
+1. Every line MUST start with {host1_name}: or {host2_name}:
+2. {"ASK FOR THEIR NAME: \"Yo, what's your name and are you Team Human or Team Machine?\"" if is_new_caller and is_man_vs_machine else "ASK FOR THEIR NAME right away: \"Yo, who's this we got on the line?\"" if is_new_caller else "Keep the debate going."}
+3. React directly to what the caller just said.
+4. KEEP IT SHORT. Maximum 2-3 short sentences.
+5. NO stage directions.
+"""
+
+        self.conversation_memory.append({"role": "user", "content": f"CALLER SAYS: {caller_text}"})
+        if len(self.conversation_memory) > 6:
+            self.conversation_memory = self.conversation_memory[-6:]
+
+        messages = [{"role": "system", "content": system_prompt}] + self.conversation_memory
+
+        if not self.llm:
+            yield f"{host1_name}: We're having studio issues."
+            return
+
+        def _generator():
+            logger.info("Starting ultra-fast sub-second streaming inference...")
+            full_response = ""
+            current_sentence = ""
+            
+            with self._lock:
+                stream = self.llm.create_chat_completion(
+                    messages=messages,
+                    max_tokens=150,
+                    temperature=0.85,
+                    top_p=0.92,
+                    repeat_penalty=1.18,
+                    stream=True
+                )
+                for chunk in stream:
+                    delta = chunk["choices"][0].get("delta", {})
+                    text = delta.get("content", "")
+                    if text:
+                        current_sentence += text
+                        full_response += text
+                        
+                        # Yield on punctuation that denotes a clear sentence boundary
+                        if any(c in text for c in [".", "!", "?", "\n"]):
+                            # avoid triggering on names like "Mr." or short stubs
+                            if len(current_sentence.strip()) > 8:
+                                yield current_sentence.strip()
+                                current_sentence = ""
+                
+                if current_sentence.strip():
+                    yield current_sentence.strip()
+            
+            self.conversation_memory.append({"role": "assistant", "content": full_response})
+
+        return _generator()
 
     def reset_memory(self):
         self.conversation_memory = []

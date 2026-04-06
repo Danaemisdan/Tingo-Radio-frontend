@@ -62,6 +62,45 @@ class ShowGeneratorService:
 
         return audio_path
 
+    def generate_interactive_segment_stream_sync(self, caller_text: str, show_profile: dict, output_prefix: str):
+        """
+        Sub-Second Streaming yield generator.
+        Yields paths to individual sentence wav files as fast as they render.
+        """
+        import os
+        from .tts import generate_line_audio_sync, parse_script, SHOWS_DIR
+        
+        logger.info(f"Generating Fast-Track STREAMING interactive response for: '{caller_text[:30]}...'")
+        sentence_generator = llm_generate.generate_conversational_response_stream(caller_text, show_profile)
+        
+        chunk_index = 0
+        current_speaker = "Ife" # fallback
+        
+        for sentence in sentence_generator:
+            sentence = strip_stage_directions(sentence)
+            if not sentence.strip(): continue
+            
+            parsed = parse_script(sentence)
+            if parsed:
+                current_speaker = parsed[0]["speaker"].strip()
+                text_to_speak = parsed[0]["text"].strip()
+            else:
+                text_to_speak = sentence.strip()
+            
+            if not text_to_speak: continue
+                
+            sl = current_speaker.lower()
+            if "ife" in sl: voice = "ife_target.wav"
+            elif "dozy" in sl: voice = "Dozy_target.wav"
+            else: voice = "tingo_target.wav"
+            
+            chunk_path = os.path.join(SHOWS_DIR, f"{output_prefix}_{chunk_index}.wav")
+            generate_line_audio_sync(text_to_speak, voice, chunk_path)
+            
+            if os.path.exists(chunk_path):
+                yield chunk_path
+                chunk_index += 1
+
     def generate_interactive_segment_sync(self, caller_text: str, show_profile: dict, output_filename: str) -> str:
         """
         Ultra-fast show segment for live callers.

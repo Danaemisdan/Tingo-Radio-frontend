@@ -93,11 +93,11 @@ def get_audio_duration(file_path: str) -> float:
         except Exception:
             return 180.0  # Assume 3 minutes as fallback
 
-def push_to_liquidsoap_sync(file_path: str):
+def push_to_liquidsoap_sync(file_path: str, queue_name: str = "show_api"):
     """Synchronous nc telnet push."""
     try:
         abs_path = os.path.abspath(file_path)
-        command = f"show_api.push {abs_path}\n"
+        command = f"{queue_name}.push {abs_path}\n"
         result = subprocess.run(
             ["nc", "-w", "3", "127.0.0.1", "1234"],
             input=command,
@@ -105,7 +105,7 @@ def push_to_liquidsoap_sync(file_path: str):
             text=True,
             timeout=10
         )
-        logger.info(f"Liquidsoap push: {abs_path} → {result.stdout.strip()}")
+        logger.info(f"Liquidsoap push ({queue_name}): {abs_path} → {result.stdout.strip()}")
     except Exception as e:
         logger.error(f"Failed to push {file_path} to Liquidsoap: {e}")
 
@@ -269,7 +269,19 @@ def _automation_loop_sync(stop_event: threading.Event):
             output_name = f"show_segment_{show_segment_counter}.mp3"
             logger.info(f"Generating Show: {current_show['show_name']} #{show_segment_counter}")
             
-            ai_audio_path = show_generator.generate_show_segment_sync(current_show, prompt_modifier, output_name)
+            # Make the heavy 45-second generation block fully interruptible!
+            from concurrent.futures import ThreadPoolExecutor
+            ai_audio_path = None
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(show_generator.generate_show_segment_sync, current_show, prompt_modifier, output_name)
+                while not future.done() and not stop_event.is_set():
+                    interaction = get_next_audience_interaction()
+                    if interaction:
+                        raise CallerInterruptedException(interaction)
+                    time.sleep(1)
+                
+                if not stop_event.is_set():
+                    ai_audio_path = future.result()
 
             if ai_audio_path:
                 push_to_liquidsoap_sync(ai_audio_path)
@@ -303,30 +315,43 @@ def _automation_loop_sync(stop_event: threading.Event):
             # Instantly kill what's currently playing on air so the caller knows they are in!
             skip_liquidsoap_track()
             
-            # Push a generic "patching you through" holding audio to fill the 30s compute gap!
-            hold_audio = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/shows/patching_caller.wav"))
-            if os.path.exists(hold_audio):
-                push_to_liquidsoap_sync(hold_audio)
-            
             interaction = e.interaction
+            caller_text = ""
             if interaction["type"] == "call":
-                caller_text = transcribe_audio(interaction["audio_path"])
+                raw_path = interaction["audio_path"]
+                
+                # 1. Instantly convert and push the caller's raw voice to the live radio stream!
+                try:
+                    from pydub import AudioSegment
+                    audio = AudioSegment.from_file(raw_path)
+                    caller_wav_path = raw_path + "_broadcast.wav"
+                    audio.export(caller_wav_path, format="wav")
+                    logger.info("Broadcasting raw caller voice!")
+                    push_to_liquidsoap_sync(caller_wav_path, queue_name="interactive_api")
+                except Exception as ex:
+                    logger.error(f"Failed to prep caller audio for broadcast: {ex}")
+
+                # 2. Transcribe for the AI Brain
+                caller_text = transcribe_audio(raw_path)
                 if not caller_text: caller_text = "Hey, just checking in!"
             else:
                 caller_text = interaction["text"]
             
-            # Now spend 30s generating the real contextual response
-            output_name = f"int_resp_{int(time.time())}.mp3"
-            ai_audio_path = show_generator.generate_interactive_segment_sync(caller_text, current_show, output_name)
+            # --- SUB-SECOND STREAMING PIPELINE ---
+            logger.info("Starting sentence-by-sentence TTFB streaming response...")
+            output_prefix = f"int_resp_{int(time.time())}"
+            chunk_generator = show_generator.generate_interactive_segment_stream_sync(caller_text, current_show, output_prefix)
             
-            if ai_audio_path:
-                logger.info("Playing caller interaction!")
-                push_to_liquidsoap_sync(ai_audio_path) # Drop the interaction in
+            total_duration = 0
+            for chunk_file in chunk_generator:
+                push_to_liquidsoap_sync(chunk_file, queue_name="interactive_api")
+                total_duration += get_audio_duration(chunk_file)
+                logger.info(f"Pushed streaming chunk to air: {chunk_file}")
                 
-                try:
-                    _wait_for_overlap(get_audio_duration(ai_audio_path), stop_event, "interactive response")
-                except CallerInterruptedException:
-                    pass # Ignore a caller arriving *during* the interactive segment to prevent infinite loops
+            try:
+                _wait_for_overlap(total_duration, stop_event, "interactive response")
+            except CallerInterruptedException:
+                pass # Ignore a caller arriving *during* the interactive segment to prevent infinite loops
             
             # As requested: Reset the loop so a new song starts immediately after the conversation ends
             # (Unless it's Man vs Machine, which skips songs anyway)
