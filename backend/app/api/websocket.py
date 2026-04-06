@@ -114,14 +114,16 @@ async def live_call_endpoint(websocket: WebSocket):
                             logger.info("Call ended explicitly. Aborting AI generation loop.")
                             break
                         if not sentence.strip(): continue
-                        logger.info(f"Streamed Sentence: {sentence}")
+                        import re
+                        clean_sentence = re.sub(r'^[a-zA-Z0-9_ -]+:\s*', '', sentence).strip()
+                        if not clean_sentence: continue
                         
                         # Synthesize fragment
                         ai_voice = VOICE_MAP.get(show_profile["host2_name"], "Dozy_target.wav")
                         chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
                         
                         try:
-                            generate_line_audio_sync(sentence, ai_voice, chunk_wav)
+                            generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav)
                             
                             if not state_flag[0]: break # Double check after slow synthesis block
                             
