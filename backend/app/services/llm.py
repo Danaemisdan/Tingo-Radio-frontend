@@ -137,19 +137,27 @@ RULES:
 
         try:
             logger.info("Generating ultra-fast conversational response...")
-            with self._lock:
+            # Timeout acquire — show generator may hold the lock for up to 45s.
+            # If we can't get it in 6s, return a fast canned opening so caller hears
+            # something immediately. Their next 4s chunk will get the real response.
+            acquired = self._lock.acquire(timeout=6)
+            if not acquired:
+                logger.warning("LLM lock busy — returning canned caller welcome")
+                canned = f"{host1_name}: Yo, you're LIVE on Tingo AI Radio! Who's calling in right now?"
+                self.conversation_memory.append({"role": "assistant", "content": canned})
+                return canned
+            try:
                 response = self.llm.create_chat_completion(
                     messages=messages,
-                    max_tokens=150,  # Extremely low tokens for ultra-fast generation
+                    max_tokens=150,
                     temperature=0.85,
                     top_p=0.92,
                     repeat_penalty=1.18
                 )
+            finally:
+                self._lock.release()
             result = response["choices"][0]["message"]["content"]
-            
-            # Save our response to memory so we remember what we said
             self.conversation_memory.append({"role": "assistant", "content": result})
-            
             return result
         except Exception as e:
             logger.error(f"Conv Gen Failed: {e}")

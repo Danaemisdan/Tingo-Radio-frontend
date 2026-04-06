@@ -93,7 +93,7 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
       const customEvent = e as CustomEvent;
       if (audioRef.current) {
         if (customEvent.detail === true) {
-          audioRef.current.volume = 0.05; // 5% volume so they know it's there but it doesn't echo into the mic
+          audioRef.current.volume = 0; // Fully mute during call — prevents hearing yourself echoed back via Icecast buffer
         } else {
           audioRef.current.volume = Math.max(0, Math.min(1, (volume ?? 50) / 100));
         }

@@ -110,9 +110,14 @@ def push_to_liquidsoap_sync(file_path: str, queue_name: str = "show_api"):
         logger.error(f"Failed to push {file_path} to Liquidsoap: {e}")
 
 def skip_liquidsoap_track():
-    """Tells liquidsoap to instantly skip the currently playing queue item."""
+    """Flushes BOTH queues so music and shows stop instantly on caller interrupt."""
     try:
+        # Skip whatever is currently playing in the show queue
         subprocess.run(["nc", "-w", "1", "127.0.0.1", "1234"], input=b"show_api.skip\n", capture_output=True)
+    except: pass
+    try:
+        # Clear the interactive queue too in case of stale chunks from last session
+        subprocess.run(["nc", "-w", "1", "127.0.0.1", "1234"], input=b"interactive_api.flush\n", capture_output=True)
     except: pass
 
 class CallerInterruptedException(Exception):
@@ -136,25 +141,25 @@ def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str =
             
         time.sleep(1)
 
-import speech_recognition as sr
 from pydub import AudioSegment
 from app.api.interactive import get_next_audience_interaction
 
 def transcribe_audio(file_path: str) -> str:
-    """Converts webm audio to text using Google STT."""
+    """Converts webm/mp4 audio to text using local faster-whisper (offline, no API key needed)."""
     try:
+        from app.services.stt import stt_service
         audio = AudioSegment.from_file(file_path)
         wav_path = file_path + ".wav"
-        audio.export(wav_path, format="wav")
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(wav_path) as source:
-            audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data)
+        audio.export(wav_path, format="wav", parameters=["-ar", "16000", "-ac", "1"])
+        with open(wav_path, "rb") as f:
+            audio_bytes = f.read()
         os.remove(wav_path)
+        text = stt_service.transcribe_audio_chunk(audio_bytes)
+        logger.info(f"Transcribed caller audio: '{text[:60]}'")
         return text
     except Exception as e:
         logger.error(f"Failed to transcribe audio: {e}")
-        return "I love your show, Tingo AI Radio!"
+        return ""
 
 # --- MIXED FORMAT: SONGS, SHOWS, ADS ---
 SONGS_PER_SHOW = 2
@@ -313,17 +318,34 @@ def _automation_loop_sync(stop_event: threading.Event):
             logger.info("🚨 LIVE CALLER DETECTED! Intercepting flow...")
             _radio_state["is_show_live"] = True
             _radio_state["current_segment"] = "interactive"
-            
-            # --- INSTANT INTERRUPTION ---
-            # Instantly kill what's currently playing on air so the caller knows they are in!
+
+            # STEP 1: Kill everything currently playing immediately
             skip_liquidsoap_track()
-            
+
+            # STEP 2: Immediately flood BOTH queues with silence so music NEVER bleeds in
+            # while we wait for LLM + TTS to generate (can take 30-45s).
+            # interactive_api has priority so it plays; show_api silence blocks the fallback.
+            try:
+                silence_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/silence_120s.wav"))
+                if not os.path.exists(silence_path):
+                    logger.info("Generating 120s silence file...")
+                    from pydub import AudioSegment as _AS
+                    _AS.silent(duration=120000).export(silence_path, format="wav")
+                # Push silence to interactive_api (highest priority) — blocks ALL fallback sources
+                push_to_liquidsoap_sync(silence_path, queue_name="interactive_api")
+                # Also push to show_api as belt-and-suspenders
+                push_to_liquidsoap_sync(silence_path, queue_name="show_api")
+                logger.info("✅ Silence queued — music is now blocked for 120s")
+            except Exception as _se:
+                logger.warning(f"Could not push silence block: {_se}")
+
             interaction = e.interaction
             caller_text = ""
+
             if interaction["type"] == "call":
                 raw_path = interaction["audio_path"]
-                
-                # 1. Instantly convert and push the caller's raw voice to the live radio stream!
+
+                # Play caller voice back on air immediately (goes into interactive_api, heard on stream)
                 try:
                     from pydub import AudioSegment
                     audio = AudioSegment.from_file(raw_path)
@@ -334,30 +356,66 @@ def _automation_loop_sync(stop_event: threading.Event):
                 except Exception as ex:
                     logger.error(f"Failed to prep caller audio for broadcast: {ex}")
 
-                # 2. Transcribe for the AI Brain
+                # Transcribe what the caller said (local Whisper, offline)
                 caller_text = transcribe_audio(raw_path)
-                if not caller_text: caller_text = "Hey, just checking in!"
+                if not caller_text:
+                    caller_text = "Hey, just checking in!"
             else:
                 caller_text = interaction["text"]
-            
-            # --- SUB-SECOND STREAMING PIPELINE ---
-            logger.info("Starting sentence-by-sentence TTFB streaming response...")
-            output_prefix = f"int_resp_{int(time.time())}"
-            chunk_generator = show_generator.generate_interactive_segment_stream_sync(caller_text, current_show, output_prefix)
-            
-            total_duration = 0
-            for chunk_file in chunk_generator:
-                push_to_liquidsoap_sync(chunk_file, queue_name="interactive_api")
-                total_duration += get_audio_duration(chunk_file)
-                logger.info(f"Pushed streaming chunk to air: {chunk_file}")
-                
+
+            # STEP 2: Generate ONE full AI response (no streaming - avoids LLM lock deadlock)
+            # The LLM lock is always available here because show_generator thread was abandoned with wait=False
+            logger.info(f"Generating AI response to caller: '{caller_text[:50]}'")
             try:
-                _wait_for_overlap(total_duration, stop_event, "interactive response")
-            except CallerInterruptedException:
-                pass # Ignore a caller arriving *during* the interactive segment to prevent infinite loops
-            
-            # As requested: Reset the loop so a new song starts immediately after the conversation ends
-            # (Unless it's Man vs Machine, which skips songs anyway)
+                output_filename = f"int_resp_{int(time.time())}.mp3"
+                ai_audio_path = show_generator.generate_interactive_segment_sync(
+                    caller_text, current_show, output_filename
+                )
+
+                if ai_audio_path and os.path.exists(ai_audio_path):
+                    push_to_liquidsoap_sync(ai_audio_path, queue_name="interactive_api")
+                    resp_dur = get_audio_duration(ai_audio_path)
+                    logger.info(f"✅ AI response on air! Duration: {resp_dur:.1f}s")
+                    # Wait until the response finishes playing before accepting next chunk
+                    # Use a shorter wait so the caller can keep talking
+                    time.sleep(max(0, resp_dur - 2))
+                else:
+                    logger.error("AI response generation failed - no audio produced")
+            except Exception as ex:
+                logger.error(f"Interactive response error: {ex}")
+
+            # STEP 3: Drain any remaining call chunks already sitting in the queue
+            while True:
+                next_chunk = get_next_audience_interaction()
+                if not next_chunk:
+                    break
+                if next_chunk["type"] == "call":
+                    raw_path = next_chunk["audio_path"]
+                    chunk_text = transcribe_audio(raw_path)
+                    if not chunk_text:
+                        continue
+                    logger.info(f"Processing follow-up caller chunk: '{chunk_text[:40]}'")
+                    try:
+                        from pydub import AudioSegment
+                        audio = AudioSegment.from_file(raw_path)
+                        wav = raw_path + "_broadcast.wav"
+                        audio.export(wav, format="wav")
+                        push_to_liquidsoap_sync(wav, queue_name="interactive_api")
+                    except: pass
+                    output_filename = f"int_resp_{int(time.time())}.mp3"
+                    ai_audio_path = show_generator.generate_interactive_segment_sync(
+                        chunk_text, current_show, output_filename
+                    )
+                    if ai_audio_path and os.path.exists(ai_audio_path):
+                        push_to_liquidsoap_sync(ai_audio_path, queue_name="interactive_api")
+                        time.sleep(max(0, get_audio_duration(ai_audio_path) - 2))
+                else:
+                    break  # Text message - not a call chunk, exit loop
+
+            logger.info("📞 Call session ended. Resuming normal broadcast.")
+            # Reset memory so next caller gets a fresh conversation
+            from .llm import llm_generate
+            llm_generate.reset_memory()
             songs_since_last_show = 0
             continue
 
