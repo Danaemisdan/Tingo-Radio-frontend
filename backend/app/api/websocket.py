@@ -34,7 +34,9 @@ async def live_call_endpoint(websocket: WebSocket):
             "host1_name": "Ife",
             "host2_name": "TingoAI Max"
         }
-        
+        call_active = [True]
+        transcript_buffer = []
+
         while True:
             # 1. We receive WebM audio chunks ~every 2 seconds from the browser
             data = await websocket.receive_bytes()
@@ -47,8 +49,6 @@ async def live_call_endpoint(websocket: WebSocket):
                 skip_liquidsoap_track()
                 
                 # Push silence to the underlying show queue.
-                # If we don't do this, every microsecond of silence between the AI's words will
-                # cause Liquidsoap to fall backward to the music playlist!
                 silence_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/silence_120s.wav"))
                 if not os.path.exists(silence_path):
                     from pydub import AudioSegment as _AS
@@ -57,11 +57,27 @@ async def live_call_endpoint(websocket: WebSocket):
             
             # 2. Fast STT
             transcript = stt_service.transcribe_audio_chunk(data)
+            
+            # 3. Buffer and Debounce
+            # If the user paused speaking (silence), or if they've spoken non-stop for 6 seconds (3 chunks)
             if not transcript or len(transcript.strip()) < 2:
-                continue
+                if transcript_buffer:
+                    combined_text = " ".join(transcript_buffer)
+                    transcript_buffer = []
+                else:
+                    continue  # Just normal background silence, ignore
+            else:
+                transcript_buffer.append(transcript)
+                logger.info(f"[CALLER INPUT]: {transcript}")
+                await websocket.send_text(f"STT: {transcript}")
                 
-            logger.info(f"[CALLER INPUT]: {transcript}")
-            await websocket.send_text(f"STT: {transcript}")
+                if len(transcript_buffer) >= 3:
+                    combined_text = " ".join(transcript_buffer)
+                    transcript_buffer = []
+                else:
+                    # Still accumulating their continuous speech, do not interrupt yet
+                    # But we'll still broadcast their raw voice to radio right now
+                    pass
             
             # Broadcast caller's raw audio chunk to the world so they hear the caller speak too
             # We convert the raw WebM byte buffer to a pure WAV file for Liquidsoap compatibility
@@ -84,45 +100,49 @@ async def live_call_endpoint(websocket: WebSocket):
             except Exception as e:
                 logger.error(f"Failed to transcode and push caller audio to liquidsoap: {e}")
             
-            # 3. Stream the LLM text -> TTS -> WebSocket
-            generator = llm_generate.generate_conversational_response_stream(transcript, show_profile)
-            
-            # We iterate over the sentence chunks the LLM stream yields
-            # The LLM lock runs synchronously via asyncio.to_thread to not block the socket
-            
-            # Capture the primary main event loop safely BEFORE entering the thread block
-            main_loop = asyncio.get_running_loop()
-            
-            def consume_stream():
-                for sentence in generator:
-                    if not sentence.strip(): continue
-                    logger.info(f"Streamed Sentence: {sentence}")
-                    
-                    # Synthesize fragment
-                    # By default M-X uses TingoAI Max voice mapping (Dozy_target.wav)
-                    ai_voice = VOICE_MAP.get(show_profile["host2_name"], "Dozy_target.wav")
-                    chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
-                    
-                    try:
-                        generate_line_audio_sync(sentence, ai_voice, chunk_wav)
+            # We only launch LLM/TTS if the debouncer flushed text this cycle
+            if 'combined_text' in locals() and combined_text:
+                # 3. Stream the LLM text -> TTS -> WebSocket
+                generator = llm_generate.generate_conversational_response_stream(combined_text, show_profile)
+                
+                # Capture the primary main event loop safely BEFORE entering the thread block
+                main_loop = asyncio.get_running_loop()
+                
+                def consume_stream(text, state_flag):
+                    for sentence in generator:
+                        if not state_flag[0]:
+                            logger.info("Call ended explicitly. Aborting AI generation loop.")
+                            break
+                        if not sentence.strip(): continue
+                        logger.info(f"Streamed Sentence: {sentence}")
                         
-                        with open(chunk_wav, "rb") as f:
-                            wav_data = f.read()
+                        # Synthesize fragment
+                        ai_voice = VOICE_MAP.get(show_profile["host2_name"], "Dozy_target.wav")
+                        chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
+                        
+                        try:
+                            generate_line_audio_sync(sentence, ai_voice, chunk_wav)
                             
-                        # A) Blast audio to caller instantly using the correct main loop pointer
-                        asyncio.run_coroutine_threadsafe(websocket.send_bytes(wav_data), main_loop)
-                        
-                        # B) Queue to liquidsoap so the world hears it appended on air automatically
-                        push_to_liquidsoap_sync(chunk_wav, queue_name="interactive_api")
-                        
-                    except Exception as e:
-                        logger.error(f"Failed to synthesize streamed chunk: {e}")
+                            if not state_flag[0]: break # Double check after slow synthesis block
+                            
+                            with open(chunk_wav, "rb") as f:
+                                wav_data = f.read()
+                                
+                            # A) Blast audio to caller instantly using the correct main loop pointer
+                            asyncio.run_coroutine_threadsafe(websocket.send_bytes(wav_data), main_loop)
+                            
+                            # B) Queue to liquidsoap so the world hears it
+                            push_to_liquidsoap_sync(chunk_wav, queue_name="interactive_api")
+                            
+                        except Exception as e:
+                            logger.error(f"Failed to synthesize streamed chunk: {e}")
 
-            # Do NOT await this! It must run in the background so we can instantly return to websocket.receive_bytes()
-            # to maintain a true full-duplex connection without dropping incoming microphone packets!
-            asyncio.create_task(asyncio.to_thread(consume_stream))
+                # Do NOT await this! It must run in the background so we can instantly return
+                asyncio.create_task(asyncio.to_thread(consume_stream, combined_text, call_active))
+                del combined_text # Clear memory so next loop doesn't immediately fire it again
 
     except WebSocketDisconnect:
+        call_active[0] = False
         manager.disconnect(websocket)
     except Exception as e:
         logger.error(f"WebSocket Terminal Error: {e}")
