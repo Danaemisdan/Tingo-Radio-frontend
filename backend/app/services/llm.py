@@ -138,9 +138,9 @@ RULES:
         try:
             logger.info("Generating ultra-fast conversational response...")
             # Timeout acquire — show generator may hold the lock for up to 45s.
-            # If we can't get it in 6s, return a fast canned opening so caller hears
+            # If we can't get it immediately (0.1s), return a fast canned opening so caller hears
             # something immediately. Their next 4s chunk will get the real response.
-            acquired = self._lock.acquire(timeout=6)
+            acquired = self._lock.acquire(timeout=0.1)
             if not acquired:
                 logger.warning("LLM lock busy — returning canned caller welcome")
                 canned = f"{host1_name}: Yo, you're LIVE on Tingo AI Radio! Who's calling in right now?"
@@ -149,7 +149,7 @@ RULES:
             try:
                 response = self.llm.create_chat_completion(
                     messages=messages,
-                    max_tokens=150,
+                    max_tokens=50,  # Short = fast. 2 punchy radio lines. TTS synthesis time is ~60% less
                     temperature=0.85,
                     top_p=0.92,
                     repeat_penalty=1.18

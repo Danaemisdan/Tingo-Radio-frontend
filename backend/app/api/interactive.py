@@ -66,3 +66,15 @@ def get_next_audience_interaction():
         audience_queue["messages"].remove(oldest)
         
     return oldest
+
+
+@router.post("/end-call")
+async def end_call():
+    """
+    Frontend calls this when the user presses End Call.
+    Sets a flag that the automation loop checks every second — causes
+    the call session to exit cleanly without waiting for the 30s idle timeout.
+    """
+    from app.services.automation import _radio_state
+    _radio_state["end_call_requested"] = True
+    return {"status": "ok", "message": "Call end signal sent to automation loop"}

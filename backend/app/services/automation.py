@@ -318,26 +318,26 @@ def _automation_loop_sync(stop_event: threading.Event):
             logger.info("🚨 LIVE CALLER DETECTED! Intercepting flow...")
             _radio_state["is_show_live"] = True
             _radio_state["current_segment"] = "interactive"
+            _radio_state["end_call_requested"] = False  # Reset flag on every new call
 
             # STEP 1: Kill everything currently playing immediately
             skip_liquidsoap_track()
 
-            # STEP 2: Immediately flood BOTH queues with silence so music NEVER bleeds in
-            # while we wait for LLM + TTS to generate (can take 30-45s).
-            # interactive_api has priority so it plays; show_api silence blocks the fallback.
-            try:
-                silence_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/silence_120s.wav"))
-                if not os.path.exists(silence_path):
-                    logger.info("Generating 120s silence file...")
-                    from pydub import AudioSegment as _AS
-                    _AS.silent(duration=120000).export(silence_path, format="wav")
-                # Push silence to interactive_api (highest priority) — blocks ALL fallback sources
-                push_to_liquidsoap_sync(silence_path, queue_name="interactive_api")
-                # Also push to show_api as belt-and-suspenders
-                push_to_liquidsoap_sync(silence_path, queue_name="show_api")
-                logger.info("✅ Silence queued — music is now blocked for 120s")
-            except Exception as _se:
-                logger.warning(f"Could not push silence block: {_se}")
+            # STEP 2: Push silence ONLY to show_api to block the music fallback.
+            # DO NOT push to interactive_api — that queue only carries real audio (caller + AI).
+            # When interactive_api is empty during LLM gen, fallback → show_api (silence) not music.
+            silence_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/silence_120s.wav"))
+            def _push_silence_block():
+                try:
+                    if not os.path.exists(silence_path):
+                        logger.info("Generating 120s silence file...")
+                        from pydub import AudioSegment as _AS
+                        _AS.silent(duration=120000).export(silence_path, format="wav")
+                    push_to_liquidsoap_sync(silence_path, queue_name="show_api")
+                    logger.info("✅ show_api silence refreshed — music blocked")
+                except Exception as _se:
+                    logger.warning(f"Could not push silence block: {_se}")
+            _push_silence_block()
 
             interaction = e.interaction
             caller_text = ""
@@ -345,7 +345,7 @@ def _automation_loop_sync(stop_event: threading.Event):
             if interaction["type"] == "call":
                 raw_path = interaction["audio_path"]
 
-                # Play caller voice back on air immediately (goes into interactive_api, heard on stream)
+                # Broadcast caller voice immediately on stream
                 try:
                     from pydub import AudioSegment
                     audio = AudioSegment.from_file(raw_path)
@@ -356,68 +356,132 @@ def _automation_loop_sync(stop_event: threading.Event):
                 except Exception as ex:
                     logger.error(f"Failed to prep caller audio for broadcast: {ex}")
 
-                # Transcribe what the caller said (local Whisper, offline)
+                # Transcribe (local Whisper — fully offline)
                 caller_text = transcribe_audio(raw_path)
                 if not caller_text:
                     caller_text = "Hey, just checking in!"
             else:
                 caller_text = interaction["text"]
 
-            # STEP 2: Generate ONE full AI response (no streaming - avoids LLM lock deadlock)
-            # The LLM lock is always available here because show_generator thread was abandoned with wait=False
+            # STEP 3: Generate first AI response (no streaming — avoids LLM lock deadlock)
             logger.info(f"Generating AI response to caller: '{caller_text[:50]}'")
             try:
                 output_filename = f"int_resp_{int(time.time())}.mp3"
                 ai_audio_path = show_generator.generate_interactive_segment_sync(
                     caller_text, current_show, output_filename
                 )
-
                 if ai_audio_path and os.path.exists(ai_audio_path):
                     push_to_liquidsoap_sync(ai_audio_path, queue_name="interactive_api")
                     resp_dur = get_audio_duration(ai_audio_path)
                     logger.info(f"✅ AI response on air! Duration: {resp_dur:.1f}s")
-                    # Wait until the response finishes playing before accepting next chunk
-                    # Use a shorter wait so the caller can keep talking
                     time.sleep(max(0, resp_dur - 2))
                 else:
-                    logger.error("AI response generation failed - no audio produced")
+                    logger.error("AI response generation failed — no audio produced")
             except Exception as ex:
                 logger.error(f"Interactive response error: {ex}")
 
-            # STEP 3: Drain any remaining call chunks already sitting in the queue
+            # STEP 4: Timed call session loop.
+            # Previous code broke immediately if the queue was empty — it never waited for
+            # the caller's next 4-second chunk to arrive, so second responses never happened.
+            # New code polls every 1s, refreshes silence every 90s, and auto-wraps after idle.
+            CALL_IDLE_TIMEOUT = 30    # seconds with no new chunk → AI signs off
+            MAX_CALL_DURATION = 180   # 3-minute hard cap
+            call_start = time.time()
+            last_chunk_time = time.time()
+            silence_last_refreshed = time.time()
+            GOODBYE_WORDS = [
+                "bye", "goodbye", "later", "gotta go", "i'm done", "done now",
+                "off now", "catch you", "thank you", "thanks", "that's all"
+            ]
+
+            logger.info("📞 Entered timed call session — polling for follow-up chunks...")
             while True:
-                next_chunk = get_next_audience_interaction()
-                if not next_chunk:
+                # Frontend pressed End Call
+                if _radio_state.get("end_call_requested", False):
+                    logger.info("📞 Frontend end-call received — exiting session")
                     break
-                if next_chunk["type"] == "call":
+
+                # 3-minute hard cap
+                if time.time() - call_start > MAX_CALL_DURATION:
+                    logger.info("📞 3-min call limit hit — auto-ending")
+                    break
+
+                # Refresh show_api silence every 90s (prevents music fallback)
+                if time.time() - silence_last_refreshed > 90:
+                    _push_silence_block()
+                    silence_last_refreshed = time.time()
+
+                next_chunk = get_next_audience_interaction()
+                if next_chunk:
+                    last_chunk_time = time.time()
+                    if next_chunk["type"] != "call":
+                        break  # Text message, not audio — exit call mode
+
                     raw_path = next_chunk["audio_path"]
                     chunk_text = transcribe_audio(raw_path)
                     if not chunk_text:
+                        time.sleep(1)
                         continue
-                    logger.info(f"Processing follow-up caller chunk: '{chunk_text[:40]}'")
+
+                    logger.info(f"📞 Follow-up chunk: '{chunk_text[:50]}'")
+                    is_goodbye = any(w in chunk_text.lower() for w in GOODBYE_WORDS)
+
+                    # Broadcast caller voice
                     try:
                         from pydub import AudioSegment
                         audio = AudioSegment.from_file(raw_path)
                         wav = raw_path + "_broadcast.wav"
                         audio.export(wav, format="wav")
                         push_to_liquidsoap_sync(wav, queue_name="interactive_api")
-                    except: pass
-                    output_filename = f"int_resp_{int(time.time())}.mp3"
-                    ai_audio_path = show_generator.generate_interactive_segment_sync(
-                        chunk_text, current_show, output_filename
-                    )
-                    if ai_audio_path and os.path.exists(ai_audio_path):
-                        push_to_liquidsoap_sync(ai_audio_path, queue_name="interactive_api")
-                        time.sleep(max(0, get_audio_duration(ai_audio_path) - 2))
-                else:
-                    break  # Text message - not a call chunk, exit loop
+                    except Exception:
+                        pass
 
-            logger.info("📞 Call session ended. Resuming normal broadcast.")
-            # Reset memory so next caller gets a fresh conversation
+                    # Generate AI reply (goodbye framing if detected)
+                    prompt = chunk_text
+                    if is_goodbye:
+                        prompt = chunk_text + " [Caller is leaving — thank them energetically on air, say you're dropping a hot one for them]"
+
+                    try:
+                        out_name = f"int_resp_{int(time.time())}.mp3"
+                        reply_path = show_generator.generate_interactive_segment_sync(
+                            prompt, current_show, out_name
+                        )
+                        if reply_path and os.path.exists(reply_path):
+                            push_to_liquidsoap_sync(reply_path, queue_name="interactive_api")
+                            dur = get_audio_duration(reply_path)
+                            time.sleep(max(0, dur - 2))
+                    except Exception as ex:
+                        logger.error(f"Follow-up response error: {ex}")
+
+                    if is_goodbye:
+                        break  # Clean exit after farewell
+
+                else:
+                    # Queue empty — check idle timeout
+                    idle_secs = time.time() - last_chunk_time
+                    if idle_secs >= CALL_IDLE_TIMEOUT:
+                        logger.info(f"📞 Caller silent {idle_secs:.0f}s — AI signing off")
+                        try:
+                            farewell_path = show_generator.generate_interactive_segment_sync(
+                                "The caller has gone quiet. Wrap up warmly, thank them for calling Tingo AI Radio, and say you're heading back to the music.",
+                                current_show,
+                                f"farewell_{int(time.time())}.mp3"
+                            )
+                            if farewell_path and os.path.exists(farewell_path):
+                                push_to_liquidsoap_sync(farewell_path, queue_name="interactive_api")
+                                time.sleep(max(0, get_audio_duration(farewell_path) - 1))
+                        except Exception as ex:
+                            logger.error(f"Auto-farewell failed: {ex}")
+                        break
+                    time.sleep(1)
+
+            logger.info("📞 Call session complete. Resuming normal broadcast.")
+            _radio_state["end_call_requested"] = False
             from .llm import llm_generate
             llm_generate.reset_memory()
             songs_since_last_show = 0
             continue
+
 
         except Exception as e:
             logger.error(f"CRITICAL: Automation loop caught an exception but SURVIVED: {e}", exc_info=True)

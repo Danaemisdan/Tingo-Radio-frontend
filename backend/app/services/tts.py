@@ -141,6 +141,10 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
                 segment = AudioSegment.from_wav(tf)
                 combined += segment
 
+        # CRITICAL FIX: Add 3.5s of silence to the end so Liquidsoap's 3-second crossfade 
+        # doesn't chop off the last words of the host speaking!
+        combined += AudioSegment.silent(duration=3500)
+
         concat_audio_path = os.path.join(SHOWS_DIR, f"concat_audio_{job_id}.wav")
         combined.export(concat_audio_path, format="wav")
 

@@ -290,6 +290,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     setInCall(false);
     window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: false }));
     window.dispatchEvent(new CustomEvent('radio-force-sync'));
+    // Signal backend to exit call session immediately (don't wait for 30s idle timeout)
+    fetch(`${apiBase}/api/audience/end-call`, { method: "POST" }).catch(() => {});
   };
 
   const handleCallToggle = () => {
@@ -354,9 +356,9 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             <button
               onClick={handleCallToggle}
               title={showIsLive ? (inCall ? "End call" : `Call into ${showName || "the show"} live!`) : "Call In is only active during a show"}
-              disabled={!showIsLive}
+              disabled={!isLive && !inCall}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                !showIsLive
+                (!isLive && !inCall)
                   ? "bg-white/5 text-white/20 cursor-not-allowed opacity-50"
                   : inCall
                   ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
