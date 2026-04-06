@@ -77,6 +77,37 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
     }
   }, [volume]);
 
+  // Global Remote Control for Interactive Call Interrupts
+  useEffect(() => {
+    const handleSync = () => {
+      if (audioRef.current && isPlaying) {
+        // Fast-forward cache explicitly to hear AI without the 5s Icecast queue delay
+        const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+        audioRef.current.src = streamUrl ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
+        audioRef.current.play().catch(() => {});
+      }
+    };
+    
+    const handleMute = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (audioRef.current) {
+        if (customEvent.detail === true) {
+          audioRef.current.volume = 0.05; // 5% volume so they know it's there but it doesn't echo into the mic
+        } else {
+          audioRef.current.volume = Math.max(0, Math.min(1, (volume ?? 50) / 100));
+        }
+      }
+    };
+
+    window.addEventListener('radio-force-sync', handleSync);
+    window.addEventListener('radio-mute-state', handleMute);
+    return () => {
+      window.removeEventListener('radio-force-sync', handleSync);
+      window.removeEventListener('radio-mute-state', handleMute);
+    };
+  }, [isPlaying, volume]);
+
   const handleClick = () => {
     if (isPlaying) {
       handlePlayState(false);

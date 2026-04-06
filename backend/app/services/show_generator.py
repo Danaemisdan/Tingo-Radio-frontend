@@ -90,9 +90,8 @@ class ShowGeneratorService:
             if not text_to_speak: continue
                 
             sl = current_speaker.lower()
-            if "ife" in sl: voice = "ife_target.wav"
-            elif "dozy" in sl: voice = "Dozy_target.wav"
-            else: voice = "tingo_target.wav"
+            if "dozy" in sl: voice = "Dozy_target.wav"
+            else: voice = "ife_target.wav"
             
             chunk_path = os.path.join(SHOWS_DIR, f"{output_prefix}_{chunk_index}.wav")
             generate_line_audio_sync(text_to_speak, voice, chunk_path)

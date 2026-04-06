@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Phone, PhoneOff, Zap, Mic, MicOff } from "lucide-react";
+import { Send, Phone, PhoneOff, Zap, Mic, MicOff, Lock } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface ChatMessage {
@@ -261,6 +261,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
       setTimeout(() => recorder.stop(), 4000);
       setIsRecording(true);
       setRecordingStatus("recording");
+      window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: true }));
     } catch (err) {
       console.error("Mic access denied:", err);
       alert("Please allow microphone access to call in!");
@@ -269,6 +270,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   };
 
   const [isAuthenticatedOap, setIsAuthenticatedOap] = useState(false);
+  const [showPasscodeUI, setShowPasscodeUI] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState("");
 
   const endCall = () => {
     if (mediaRecorderRef.current) {
@@ -278,6 +281,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
     setIsRecording(false);
     setRecordingStatus("idle");
     setInCall(false);
+    window.dispatchEvent(new CustomEvent('radio-mute-state', { detail: false }));
+    window.dispatchEvent(new CustomEvent('radio-force-sync'));
   };
 
   const handleCallToggle = () => {
@@ -286,13 +291,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
       endCall();
     } else {
       if (!isAuthenticatedOap) {
-        const code = window.prompt("OAP Passcode required to unlock broadcast line:");
-        if (code === "TINGOOAP") {
-          setIsAuthenticatedOap(true);
-        } else {
-          window.alert("Unauthorized. Incorrect passcode.");
-          return;
-        }
+        setShowPasscodeUI(true);
+        return;
       }
       setInCall(true);
       startCall();
@@ -393,15 +393,67 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
           </AnimatePresence>
 
           {/* ── Messages ── */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5"
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 relative"
             style={{ scrollbarWidth: "none" }}>
-            {messages.length === 0 && (
+            
+            <AnimatePresence>
+              {showPasscodeUI && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="absolute inset-0 z-10 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-4 rounded-xl"
+                >
+                  <Lock className="w-8 h-8 text-orange-500 mb-3" />
+                  <h3 className="text-white font-bold text-sm mb-1 text-center">Broadcast Line Secured</h3>
+                  <p className="text-white/40 text-[10px] text-center mb-4">Enter OAP Passcode to override the live radio feed.</p>
+                  
+                  <input
+                    type="password"
+                    autoFocus
+                    value={passcodeInput}
+                    onChange={(e) => setPasscodeInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (passcodeInput === "TINGOOAP") {
+                          setIsAuthenticatedOap(true);
+                          setShowPasscodeUI(false);
+                          setInCall(true);
+                          startCall();
+                        } else {
+                          alert("Unauthorized passcode.");
+                          setPasscodeInput("");
+                        }
+                      }
+                    }}
+                    placeholder="Enter Passcode..."
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-center text-sm font-mono tracking-widest outline-none focus:border-orange-500/50 transition-colors mb-3"
+                  />
+                  <div className="flex gap-2 w-full">
+                    <button onClick={() => setShowPasscodeUI(false)} className="flex-1 py-2 rounded-lg bg-white/5 text-white/50 text-xs font-bold hover:bg-white/10">Cancel</button>
+                    <button onClick={() => {
+                        if (passcodeInput === "TINGOOAP") {
+                          setIsAuthenticatedOap(true);
+                          setShowPasscodeUI(false);
+                          setInCall(true);
+                          startCall();
+                        } else {
+                          alert("Unauthorized passcode.");
+                          setPasscodeInput("");
+                        }
+                    }} className="flex-1 py-2 rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 text-xs font-bold hover:bg-orange-500/30">Unlock</button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {messages.length === 0 && !showPasscodeUI && (
               <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
                 <span className="text-3xl">👀</span>
                 <p className="text-white/25 text-xs">No messages yet.<br />Say hi — Ife and Tingo are listening!</p>
               </div>
             )}
-            {messages.map((msg, i) => {
+            {!showPasscodeUI && messages.map((msg, i) => {
               const isAI = AI_NAMES.has(msg.user);
               const isSuper = msg.type === "superchat";
               const isReaction = msg.type === "reaction";

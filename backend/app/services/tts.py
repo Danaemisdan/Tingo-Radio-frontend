@@ -17,26 +17,29 @@ SHOWS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media
 
 import requests
 
+# Available voice files: ife_target.wav (female), Dozy_target.wav (male)
+# tingo_target.wav does NOT exist — never reference it.
 VOICE_MAP = {
     # Default Nigerian Hosts
     "Ife": "ife_target.wav",
-    "Tingo": "tingo_target.wav",
+    "Dozy": "Dozy_target.wav",
+    "Tingo": "Dozy_target.wav",  # Tingo = male voice
     
-    # AI Personas with Diverse African Accents
-    "TingoAI Max": "tingo_target.wav",
+    # AI Personas
+    "TingoAI Max": "Dozy_target.wav",
     "AdaAI": "ife_target.wav",
-    "Tingo Civic AI": "tingo_target.wav",
+    "Tingo Civic AI": "Dozy_target.wav",
     "Tingo Business AI": "ife_target.wav",
     "Tingo Emotion AI": "ife_target.wav",
-    "Tingo Sports AI": "tingo_target.wav",
-    "Tingo Culture AI": "tingo_target.wav",
+    "Tingo Sports AI": "Dozy_target.wav",
+    "Tingo Culture AI": "Dozy_target.wav",
     "TingoGPT Tech": "ife_target.wav",
 
     # Human Co-hosts / Callers
-    "Yaw": "tingo_target.wav",
-    "Sheriff Quadry": "tingo_target.wav",
+    "Yaw": "Dozy_target.wav",
+    "Sheriff Quadry": "Dozy_target.wav",
     "Fola Folayan": "ife_target.wav",
-    "Chukwuemeka": "tingo_target.wav",
+    "Chukwuemeka": "Dozy_target.wav",
     "Caller": "ife_target.wav"
 }
 
@@ -116,15 +119,14 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
             text = line['text']
             
             sl = speaker.lower()
-            if "ife" in sl:
+            # Only ife_target.wav and Dozy_target.wav exist on disk
+            if "ife" in sl or "ada" in sl or "fola" in sl:
                 voice = "ife_target.wav"
             elif "dozy" in sl:
                 voice = "Dozy_target.wav"
-            elif "tingo" in sl or "ai" in sl:
-                voice = "tingo_target.wav"
             else:
-                # Fallback to male voice for unknown names to be safe
-                voice = "tingo_target.wav"
+                # All other names (Tingo, Yaw, Sheriff, AI personas, etc.) → male voice
+                voice = "Dozy_target.wav"
                 
             temp_file = os.path.join(SHOWS_DIR, f"tmp_{job_id}_{i}.wav")
             generate_line_audio_sync(text, voice, temp_file)

@@ -112,7 +112,7 @@ def push_to_liquidsoap_sync(file_path: str, queue_name: str = "show_api"):
 def skip_liquidsoap_track():
     """Tells liquidsoap to instantly skip the currently playing queue item."""
     try:
-        subprocess.run(["nc", "-w", "1", "127.0.0.1", "1234"], input="show_api.skip\n", capture_output=True)
+        subprocess.run(["nc", "-w", "1", "127.0.0.1", "1234"], input=b"show_api.skip\n", capture_output=True)
     except: pass
 
 class CallerInterruptedException(Exception):
@@ -272,16 +272,19 @@ def _automation_loop_sync(stop_event: threading.Event):
             # Make the heavy 45-second generation block fully interruptible!
             from concurrent.futures import ThreadPoolExecutor
             ai_audio_path = None
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(show_generator.generate_show_segment_sync, current_show, prompt_modifier, output_name)
-                while not future.done() and not stop_event.is_set():
-                    interaction = get_next_audience_interaction()
-                    if interaction:
-                        raise CallerInterruptedException(interaction)
-                    time.sleep(1)
-                
-                if not stop_event.is_set():
-                    ai_audio_path = future.result()
+            executor = ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(show_generator.generate_show_segment_sync, current_show, prompt_modifier, output_name)
+            
+            while not future.done() and not stop_event.is_set():
+                interaction = get_next_audience_interaction()
+                if interaction:
+                    executor.shutdown(wait=False)
+                    raise CallerInterruptedException(interaction)
+                time.sleep(1)
+            
+            if not stop_event.is_set():
+                ai_audio_path = future.result()
+            executor.shutdown(wait=False)
 
             if ai_audio_path:
                 push_to_liquidsoap_sync(ai_audio_path)
