@@ -66,12 +66,21 @@ async def live_call_endpoint(websocket: WebSocket):
             # Broadcast caller's raw audio chunk to the world so they hear the caller speak too
             # We convert the raw WebM byte buffer to a pure WAV file for Liquidsoap compatibility
             caller_wav = os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:6]}.wav")
+            caller_wav = os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:6]}.wav")
             try:
-                import io
-                from pydub import AudioSegment
-                audio_segment = AudioSegment.from_file(io.BytesIO(data))
-                audio_segment.export(caller_wav, format="wav")
-                push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
+                import subprocess
+                webm_tmp = caller_wav.replace(".wav", ".webm")
+                with open(webm_tmp, "wb") as f:
+                    f.write(data)
+                
+                # Use a strict hard-timeout ffmpeg call so it NEVER hangs the websocket loop!
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", webm_tmp, 
+                    "-ar", "24000", "-ac", "1", caller_wav
+                ], timeout=3, capture_output=True)
+                
+                if os.path.exists(caller_wav):
+                    push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
             except Exception as e:
                 logger.error(f"Failed to transcode and push caller audio to liquidsoap: {e}")
             
@@ -80,6 +89,10 @@ async def live_call_endpoint(websocket: WebSocket):
             
             # We iterate over the sentence chunks the LLM stream yields
             # The LLM lock runs synchronously via asyncio.to_thread to not block the socket
+            
+            # Capture the primary main event loop safely BEFORE entering the thread block
+            main_loop = asyncio.get_running_loop()
+            
             def consume_stream():
                 for sentence in generator:
                     if not sentence.strip(): continue
@@ -96,8 +109,8 @@ async def live_call_endpoint(websocket: WebSocket):
                         with open(chunk_wav, "rb") as f:
                             wav_data = f.read()
                             
-                        # A) Blast audio to caller instantly
-                        asyncio.run_coroutine_threadsafe(websocket.send_bytes(wav_data), asyncio.get_event_loop())
+                        # A) Blast audio to caller instantly using the correct main loop pointer
+                        asyncio.run_coroutine_threadsafe(websocket.send_bytes(wav_data), main_loop)
                         
                         # B) Queue to liquidsoap so the world hears it appended on air automatically
                         push_to_liquidsoap_sync(chunk_wav, queue_name="interactive_api")
