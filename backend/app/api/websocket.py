@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import logging
+import time
 import uuid
 import os
 import asyncio
@@ -112,7 +113,12 @@ async def live_call_endpoint(websocket: WebSocket):
                 def consume_stream(text, state_flag, gen_id, my_id):
                     try:
                         logger.info(f"Thread {my_id} starting generator loop!")
+                        start_time = time.time()
+                        first_sentence = True
                         for sentence in generator:
+                            if first_sentence:
+                                logger.info(f"Thread {my_id} received first LLM sentence in {time.time() - start_time:.2f}s!")
+                                first_sentence = False
                             if gen_id[0] != my_id:
                                 logger.info(f"Thread {my_id} aborted mid-sentence! Caller interrupted.")
                                 break
@@ -130,7 +136,10 @@ async def live_call_endpoint(websocket: WebSocket):
                             chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
                             
                             try:
+                                xtts_start = time.time()
+                                logger.info(f"Thread {my_id} pinging XTTS server for '{clean_sentence}'...")
                                 generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav, is_interactive=True)
+                                logger.info(f"Thread {my_id} finished XTTS synthesis in {time.time() - xtts_start:.2f}s")
                                 
                                 if not state_flag[0] or gen_id[0] != my_id: break # Double check after slow synthesis block
                                 
