@@ -53,12 +53,19 @@ class STTService:
                 return ""
             
             # Feed clean WAV directly to Whisper
+            # CRITICAL: vad_threshold=0.3 — the default 0.5 was stripping 100% of browser
+            # mic audio as "silence". Browser WebM/Opus compression at low bitrates makes
+            # speech look quieter than it is to the VAD model.
             segments, info = self.model.transcribe(
                 tmp_wav,
-                beam_size=5,           # More accurate than beam_size=1
+                beam_size=3,
                 language="en",
                 vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=300, speech_pad_ms=200)
+                vad_parameters=dict(
+                    threshold=0.3,              # Default 0.5 strips ALL browser mic audio
+                    min_speech_duration_ms=100, # Accept short utterances
+                    min_silence_duration_ms=400,
+                )
             )
             
             transcript = "".join(s.text for s in segments).strip()
