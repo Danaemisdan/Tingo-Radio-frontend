@@ -44,7 +44,11 @@ async def live_call_endpoint(websocket: WebSocket):
         # We keep ALL chunks so the combined bytes form a complete decodable WebM file.
         # After flushing to the LLM, we reset to [chunk[0]] to keep the headers for next utterance.
         webm_chunks: list[bytes] = []
-        
+        # After dispatching to LLM, ignore STT for a few seconds.
+        # The rolling buffer always retranscribes the previous utterance
+        # from chunk[0] — without this cooldown, it fires duplicate LLM calls.
+        stt_cooldown_until = 0.0
+
         # Reset AI memory so every new caller gets a fresh greeting.
         llm_generate.reset_conversation()
 
@@ -70,55 +74,49 @@ async def live_call_endpoint(websocket: WebSocket):
                     _AS.silent(duration=120000).export(silence_path, format="wav")
                 push_to_liquidsoap_sync(silence_path, queue_name="show_api")
 
-            # 2. STT — feed full accumulated buffer (always has WebM headers from chunk[0])
-            stt_input = b"".join(webm_chunks)
-            transcript = stt_service.transcribe_audio_chunk(stt_input)
+            # 2. STT — skip during cooldown to avoid retranscribing old audio
+            pending_text = None
+            now = time.time()
 
-            # 3. Debounce logic
-            pending_text = None  # Text ready to send to LLM this cycle
-
-            if transcript and len(transcript.strip()) >= 2:
-                # Speech detected — buffer it (deduplicated)
-                if not transcript_buffer or transcript_buffer[-1] != transcript:
-                    transcript_buffer.append(transcript)
-                    logger.info(f"[CALLER INPUT]: {transcript}")
-                    await websocket.send_text(f"STT: {transcript}")
+            if now < stt_cooldown_until:
+                # In cooldown: keep accumulating chunks for headers but don't STT
+                pass
             else:
-                # Silence detected — flush buffer to LLM
-                if transcript_buffer:
+                stt_input = b"".join(webm_chunks)
+                transcript = stt_service.transcribe_audio_chunk(stt_input)
+
+                # 3. Debounce logic
+                if transcript and len(transcript.strip()) >= 2:
+                    # Speech detected — buffer it (deduplicated)
+                    if not transcript_buffer or transcript_buffer[-1] != transcript:
+                        transcript_buffer.append(transcript)
+                        logger.info(f"[CALLER INPUT]: {transcript}")
+                        await websocket.send_text(f"STT: {transcript}")
+                else:
+                    # Silence — flush buffer to LLM
+                    if transcript_buffer:
+                        pending_text = " ".join(transcript_buffer)
+                        transcript_buffer = []
+                        webm_chunks = [webm_chunks[0]]
+                    else:
+                        if len(webm_chunks) > 2:
+                            webm_chunks = [webm_chunks[0]]
+
+                # Force flush after 3 consecutive speech chunks
+                if len(transcript_buffer) >= 3:
                     pending_text = " ".join(transcript_buffer)
                     transcript_buffer = []
-                    webm_chunks = [webm_chunks[0]]  # Reset audio, keep WebM headers
-                else:
-                    # True silence with nothing buffered — trim memory
-                    if len(webm_chunks) > 2:
-                        webm_chunks = [webm_chunks[0]]
+                    webm_chunks = [webm_chunks[0]]
 
-            # Also flush after 3 consecutive speech chunks (force response even if no silence)
-            if len(transcript_buffer) >= 3:
-                pending_text = " ".join(transcript_buffer)
-                transcript_buffer = []
-                webm_chunks = [webm_chunks[0]]
-
-            # Broadcast caller audio to Liquidsoap (fire & forget, never blocks the loop)
-            caller_wav = os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:6]}.wav")
-            def transcode_and_push():
-                try:
-                    import subprocess as _sp
-                    webm_tmp = caller_wav.replace(".wav", ".webm")
-                    with open(webm_tmp, "wb") as f:
-                        f.write(data)
-                    _sp.run(["ffmpeg", "-y", "-i", webm_tmp, "-ar", "24000", "-ac", "1", caller_wav],
-                            timeout=3, capture_output=True)
-                    if os.path.exists(caller_wav):
-                        push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
-                except Exception as e:
-                    logger.error(f"transcode_and_push failed: {e}")
-            asyncio.create_task(asyncio.to_thread(transcode_and_push))
+            # NOTE: Caller audio is intentionally NOT pushed to Liquidsoap.
+            # Previously every 2s chunk was queued, creating a 30-50s backlog
+            # of caller audio ahead of the AI response in the playback queue.
 
             # 4. Fire LLM → edge-TTS → WebSocket if we have flushed text
             if pending_text:
                 logger.info(f"[DISPATCH TO LLM]: '{pending_text}'")
+                # Cooldown: ignore STT for 3s so old audio isn't retranscribed into another dispatch
+                stt_cooldown_until = time.time() + 3.0
                 generation_id[0] += 1
                 my_id = generation_id[0]
                 generator = llm_generate.generate_conversational_response_stream(pending_text, show_profile)
