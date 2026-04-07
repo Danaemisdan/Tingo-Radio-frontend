@@ -82,35 +82,76 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
 
     if is_interactive:
         # ================================================================
-        # LIVE CALL PATH — edge-tts (~300ms) instead of XTTS (7-25 sec)
-        # Shows still use XTTS. Only interactive calls use this path.
-        # Nigerian accents: EzinneNeural (female Ife) / AbeoNeural (male Dozy)
+        # LIVE CALL PATH — edge-tts (~300ms latency)
+        # Nigerian accents + SSML prosody variation + radio ffmpeg chain
         # ================================================================
+        import random, asyncio, edge_tts
+
         EDGE_VOICE_MAP = {
-            "ife_target.wav":  "en-NG-EzinneNeural",  # Nigerian Female
-            "Dozy_target.wav": "en-NG-AbeoNeural",    # Nigerian Male
+            "ife_target.wav":  "en-NG-EzinneNeural",
+            "Dozy_target.wav": "en-NG-AbeoNeural",
         }
         edge_voice = EDGE_VOICE_MAP.get(voice, "en-NG-EzinneNeural")
-        
-        # edge-tts always outputs MP3; we write to a temp .mp3 then ffmpeg-convert to .wav
-        mp3_tmp = output_path.replace(".wav", "_edge.mp3")
+
+        # Slight prosody randomization so it doesn't sound identical every line
+        rate_pct  = random.choice(["-3%", "+0%", "+3%", "+5%"])
+        pitch_hz  = random.choice(["-5Hz", "+0Hz", "+5Hz", "+8Hz"])
+
+        # Wrap in SSML for natural prosody — edge-tts accepts bare SSML strings
+        ssml_text = (
+            f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-NG">'
+            f'<voice name="{edge_voice}">'
+            f'<prosody rate="{rate_pct}" pitch="{pitch_hz}">{text}</prosody>'
+            f'</voice></speak>'
+        )
+
+        mp3_tmp  = output_path.replace(".wav", "_edge.mp3")
+        raw_wav  = output_path.replace(".wav", "_raw.wav")
         try:
-            import asyncio, edge_tts
             async def _synth():
-                comm = edge_tts.Communicate(text, edge_voice, rate="+5%")
+                comm = edge_tts.Communicate(ssml_text, edge_voice)
                 await comm.save(mp3_tmp)
+
             loop = asyncio.new_event_loop()
             try:
                 loop.run_until_complete(_synth())
             finally:
                 loop.close()
 
-            # Convert MP3 → WAV (24 kHz mono) so Liquidsoap can play it
+            # Step 1 — decode MP3 to raw WAV
             subprocess.run([
                 "ffmpeg", "-y", "-i", mp3_tmp,
-                "-ar", "24000", "-ac", "1", output_path
+                "-ar", "24000", "-ac", "1", raw_wav
             ], timeout=5, capture_output=True, check=True)
-            logger.info(f"edge-tts OK → {edge_voice} → {output_path}")
+
+            # Step 2 — apply radio broadcast processing chain:
+            #   acompressor   : dynamic range compression (broadcast loudness)
+            #   equalizer     : +3dB warmth at 2kHz (voice presence)
+            #   highpass      : cut rumble below 120Hz (radio mic feel)
+            #   lowpass       : cut harshness above 10kHz
+            #   aecho         : tiny room reflection (depth, not reverb)
+            #   volume        : normalize to -3dB
+            radio_chain = (
+                "acompressor=threshold=-18dB:ratio=4:attack=5:release=100,"
+                "equalizer=f=2000:t=o:w=1:g=2,"
+                "highpass=f=120,"
+                "lowpass=f=10000,"
+                "aecho=0.8:0.5:30:0.15,"
+                "volume=1.4"
+            )
+            subprocess.run([
+                "ffmpeg", "-y", "-i", raw_wav,
+                "-af", radio_chain,
+                "-ar", "24000", "-ac", "1", output_path
+            ], timeout=8, capture_output=True, check=True)
+
+            # Cleanup temp files
+            for f in [mp3_tmp, raw_wav]:
+                if os.path.exists(f):
+                    try: os.remove(f)
+                    except: pass
+
+            logger.info(f"edge-tts radio chain complete → {edge_voice}")
             return
         except Exception as e:
             logger.error(f"edge-tts failed ({e}) — falling back to XTTS")
