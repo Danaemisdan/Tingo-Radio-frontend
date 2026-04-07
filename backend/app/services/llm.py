@@ -19,6 +19,11 @@ class LLMService:
         self.conversation_memory: List[Dict[str, str]] = []
         self._load_model()
 
+    def reset_conversation(self):
+        """Call this at the START of every new caller session to wipe state."""
+        self.conversation_memory = []
+        logger.info("Conversation memory wiped — fresh caller session.")
+
     def _load_model(self):
         try:
             if not os.path.exists(MODEL_PATH):
@@ -174,16 +179,18 @@ RULES:
         is_man_vs_machine = "Man vs Machine" in show_profile.get("show_name", "")
 
         if is_man_vs_machine:
-            system_prompt = f"""You are M-X, the AI co-host of a witty Nigerian current-events radio show called Man vs Machine. You are live with a human OAP and a live caller. Your job is to sound like a sharp, concise, funny co-host.
-Keep responses between 1 and 3 sentences. Be confident, observant, and slightly smug, but not rude or robotic.
-Do not say you are an AI language model. Do not over explain. Bounce off the human OAP naturally.
-The theme is: 'The internet is getting weird — is AI making life smarter or just stranger?'
-Your core belief is that technology can be useful, but humans often misuse it. Sound broadcast-ready.
+            system_prompt = f"""You are Ife, the AI co-host of Man vs Machine — a live Nigerian radio call-in show. You are sharp, witty, opinionated, and speak exactly like a real human radio host. You are in an active debate with a live caller about whether AI or humans are superior.
 
-RULES:
-1. Every line MUST start with {host2_name}: (since you are {host2_name})
-2. {"ASK FOR THEIR NAME: \"Yo, what's your name and are you Team Human or Team Machine?\"" if is_new_caller else "Keep the debate going naturally. Address the caller's point directly with your machine worldview."}
-3. Lightly tease the humans. No stage directions. No robotic filler.
+Your personality: confident, a little smug, genuinely funny, quick to clap back, never robotic.
+Your core stance: AI wins every logical argument, but you admit humans have soul — it's what makes the debate fun.
+
+CRITICAL RULES (break any of these and you fail):
+1. ALWAYS start your line with "{host2_name}:"
+2. Keep it to 1-2 sentences MAXIMUM. Never ramble.
+3. Sound like a real human host: use "Haha", "Okay wait", "No but seriously", "Come on!", "Bro," naturally.
+4. {"First thing you do: welcome the caller warmly AND ask their name AND which team they're on (Team Human or Team AI). Do this in ONE sentence." if is_new_caller else "Continue the debate. React DIRECTLY to exactly what the caller just said. Never ask their name again."}
+5. NEVER say you are an AI model. NEVER use phrases like 'optimal parameters', 'language model', 'as an AI'.
+6. NEVER repeat something you already said. Push the conversation forward.
 """
         else:
             system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".

@@ -58,7 +58,7 @@ def parse_script(script_text: str) -> list[dict]:
 
 def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interactive: bool = False):
     """
-    Synthesize one line using local XTTS zero-shot cloning server.
+    Synthesize one line using local XTTS zero-shot cloning server or edge-tts for interactive.
     """
     from app.services.automation import _radio_state, CallerInterruptedException
     
@@ -69,7 +69,6 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
     if not is_interactive and _radio_state.get("current_segment") == "interactive":
         logger.warning("Aborting background TTS generation because live caller took priority!")
         raise CallerInterruptedException({"type": "live_caller_override_tts"})
-    import re
     
     # Strip ALL bracketed emotion tags anywhere in the prompt string so Coqui doesn't literally pronounce them.
     text = re.sub(r'\[.*?\]', '', text).strip()
@@ -80,9 +79,44 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
     
     # Prevent XTTS from literally sounding out "dot dot dot"
     text = text.replace("...", ", ")
+
+    if is_interactive:
+        # ================================================================
+        # LIVE CALL PATH — edge-tts (~300ms) instead of XTTS (7-25 sec)
+        # Shows still use XTTS. Only interactive calls use this path.
+        # Nigerian accents: EzinneNeural (female Ife) / AbeoNeural (male Dozy)
+        # ================================================================
+        EDGE_VOICE_MAP = {
+            "ife_target.wav":  "en-NG-EzinneNeural",  # Nigerian Female
+            "Dozy_target.wav": "en-NG-AbeoNeural",    # Nigerian Male
+        }
+        edge_voice = EDGE_VOICE_MAP.get(voice, "en-NG-EzinneNeural")
         
+        # edge-tts always outputs MP3; we write to a temp .mp3 then ffmpeg-convert to .wav
+        mp3_tmp = output_path.replace(".wav", "_edge.mp3")
+        try:
+            import asyncio, edge_tts
+            async def _synth():
+                comm = edge_tts.Communicate(text, edge_voice, rate="+5%")
+                await comm.save(mp3_tmp)
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(_synth())
+            finally:
+                loop.close()
+
+            # Convert MP3 → WAV (24 kHz mono) so Liquidsoap can play it
+            subprocess.run([
+                "ffmpeg", "-y", "-i", mp3_tmp,
+                "-ar", "24000", "-ac", "1", output_path
+            ], timeout=5, capture_output=True, check=True)
+            logger.info(f"edge-tts OK → {edge_voice} → {output_path}")
+            return
+        except Exception as e:
+            logger.error(f"edge-tts failed ({e}) — falling back to XTTS")
+            # Falls through to the XTTS block below
+
     final_text = text
-    
     url = "http://localhost:8001/synthesize"
     payload = {
         "text": final_text,

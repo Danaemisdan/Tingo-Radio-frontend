@@ -38,6 +38,10 @@ async def live_call_endpoint(websocket: WebSocket):
         call_active = [True]
         generation_id = [0]
         transcript_buffer = []
+        
+        # CRITICAL: Reset AI memory so every new caller gets a fresh intro + name-ask.
+        # Without this, the AI skips greetings because it thinks it already met you.
+        llm_generate.reset_conversation()
 
         while True:
             # 1. We receive WebM audio chunks ~every 2 seconds from the browser
