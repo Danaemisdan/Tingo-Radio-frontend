@@ -42,12 +42,39 @@ async def live_call_endpoint(websocket: WebSocket):
         current_transcript = ""
         duplicate_count = 0
         
+        # Safe concurrent audio queue for sending TTS to the caller
+        audio_out_queue = asyncio.Queue()
+        
         # Reset AI memory so every new caller gets a fresh greeting.
         llm_generate.reset_conversation()
 
         while True:
-            # 1. Receive independent WebM audio chunks (~2s each from frontend)
-            data = await websocket.receive_bytes()
+            # Monitor BOTH the websocket for incoming speech AND the queue for outgoing audio
+            receive_task = asyncio.create_task(websocket.receive_bytes())
+            queue_task = asyncio.create_task(audio_out_queue.get())
+            
+            done, pending = await asyncio.wait(
+                [receive_task, queue_task], 
+                return_when=asyncio.FIRST_COMPLETED
+            )
+            
+            # Cancel the task that didn't complete
+            for p in pending:
+                p.cancel()
+                
+            # If we received outgoing audio from the background Thread, send it to the frontend!
+            # This completely bypasses the 20-30s Icecast radio stream delay.
+            if queue_task in done:
+                wav_data = queue_task.result()
+                try:
+                    await websocket.send_bytes(wav_data)
+                except Exception as e:
+                    logger.error(f"Failed to send binary TTS to UI: {e}")
+                # We processed an audio chunk, skip to next iteration to poll again
+                continue
+
+            # 1. Receiver logic: handle incoming independent WebM chunk
+            data = receive_task.result()
             if not data:
                 continue
 
@@ -154,8 +181,12 @@ async def live_call_endpoint(websocket: WebSocket):
                                 generate_line_audio_sync(clean, ai_voice, chunk_wav, is_interactive=True)
                                 logger.info(f"Thread {my_id} TTS done in {time.time()-t0:.2f}s")
                                 if not state_flag[0] or gen_id[0] != my_id: break
+                                
+                                # Instantly route to the caller's speakers via WebSocket (zero-latency)
                                 with open(chunk_wav, "rb") as f:
-                                    asyncio.run_coroutine_threadsafe(websocket.send_bytes(f.read()), main_loop)
+                                    main_loop.call_soon_threadsafe(audio_out_queue.put_nowait, f.read())
+                                    
+                                # Standard route to the radio broadcast stream (Icecast 25s latency)
                                 push_to_liquidsoap_sync(chunk_wav, queue_name="interactive_api")
                             except Exception as e:
                                 logger.error(f"TTS chunk failed: {e}")
