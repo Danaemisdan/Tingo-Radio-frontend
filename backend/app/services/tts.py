@@ -56,10 +56,19 @@ def parse_script(script_text: str) -> list[dict]:
                 parsed.append({"speaker": speaker, "text": text})
     return parsed
 
-def generate_line_audio_sync(text: str, voice: str, output_path: str):
+def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interactive: bool = False):
     """
     Synthesize one line using local XTTS zero-shot cloning server.
     """
+    from app.services.automation import _radio_state, CallerInterruptedException
+    
+    # Absolute Preemption logic: 
+    # If the background generation loop tries to feed lines to the TTS engine while the 
+    # caller is active, instantly raise the interrupt to crash the background block.
+    # This prevents the local XTTS server from being locked for 45s while responding to the caller.
+    if not is_interactive and _radio_state.get("current_segment") == "interactive":
+        logger.warning("Aborting background TTS generation because live caller took priority!")
+        raise CallerInterruptedException({"type": "live_caller_override_tts"})
     import re
     
     # Strip ALL bracketed emotion tags anywhere in the prompt string so Coqui doesn't literally pronounce them.

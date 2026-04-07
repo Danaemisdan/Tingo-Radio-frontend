@@ -124,7 +124,7 @@ async def live_call_endpoint(websocket: WebSocket):
                             chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
                             
                             try:
-                                generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav)
+                                generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav, is_interactive=True)
                                 
                                 if not state_flag[0]: break # Double check after slow synthesis block
                                 
