@@ -37,31 +37,19 @@ async def live_call_endpoint(websocket: WebSocket):
         }
         call_active = [True]
         generation_id = [0]
-        transcript_buffer = []
-        # Rolling WebM chunk buffer.
-        # MediaRecorder emits a stream: chunk[0] has EBML headers + first audio cluster,
-        # chunk[1,2,...] have only audio cluster data (no headers).
-        # We keep ALL chunks so the combined bytes form a complete decodable WebM file.
-        # After flushing to the LLM, we reset to [chunk[0]] to keep the headers for next utterance.
-        webm_chunks: list[bytes] = []
-        # After dispatching to LLM, ignore STT for a few seconds.
-        # The rolling buffer always retranscribes the previous utterance
-        # from chunk[0] — without this cooldown, it fires duplicate LLM calls.
-        stt_cooldown_until = 0.0
-
+        
+        session_pcm_bytes = b""
+        current_transcript = ""
+        duplicate_count = 0
+        
         # Reset AI memory so every new caller gets a fresh greeting.
         llm_generate.reset_conversation()
 
         while True:
-            # 1. Receive WebM audio chunks (~2s each from browser MediaRecorder)
+            # 1. Receive independent WebM audio chunks (~2s each from frontend)
             data = await websocket.receive_bytes()
             if not data:
                 continue
-
-            # Push chunk into rolling buffer (always keep first chunk for WebM headers)
-            webm_chunks.append(data)
-            if len(webm_chunks) > 8:
-                webm_chunks = [webm_chunks[0]] + webm_chunks[-7:]
 
             # Switch to interactive mode on first call
             if _radio_state["current_segment"] != "interactive":
@@ -74,49 +62,69 @@ async def live_call_endpoint(websocket: WebSocket):
                     _AS.silent(duration=120000).export(silence_path, format="wav")
                 push_to_liquidsoap_sync(silence_path, queue_name="show_api")
 
-            # 2. STT — skip during cooldown to avoid retranscribing old audio
+            # 2. Decode this standalone WebM chunk directly into raw PCM
+            import tempfile, subprocess
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+                f.write(data)
+                tmp_webm = f.name
+            
+            tmp_pcm = tmp_webm.replace(".webm", ".pcm")
+            # Convert to s16le 16kHz mono without appending WebM headers
+            subprocess.run([
+                "ffmpeg", "-y", "-i", tmp_webm, "-f", "s16le", "-ar", "16000", "-ac", "1", tmp_pcm
+            ], timeout=3, capture_output=True)
+            
+            if os.path.exists(tmp_pcm):
+                with open(tmp_pcm, "rb") as f:
+                    session_pcm_bytes += f.read()
+                os.remove(tmp_pcm)
+            os.remove(tmp_webm)
+
+            # Cap PCM memory at 10 seconds (16000 hz * 2 bytes * 10s = 320,000 bytes)
+            if len(session_pcm_bytes) > 320000:
+                session_pcm_bytes = session_pcm_bytes[-320000:]
+                
+            # 3. Transcribe the accumulated clean PCM directly
+            transcript = stt_service.transcribe_pcm(session_pcm_bytes)
+            
             pending_text = None
-            now = time.time()
 
-            if now < stt_cooldown_until:
-                # In cooldown: keep accumulating chunks for headers but don't STT
-                pass
-            else:
-                stt_input = b"".join(webm_chunks)
-                transcript = stt_service.transcribe_audio_chunk(stt_input)
-
-                # 3. Debounce logic
-                if transcript and len(transcript.strip()) >= 2:
-                    # Speech detected — buffer it (deduplicated)
-                    if not transcript_buffer or transcript_buffer[-1] != transcript:
-                        transcript_buffer.append(transcript)
-                        logger.info(f"[CALLER INPUT]: {transcript}")
-                        await websocket.send_text(f"STT: {transcript}")
+            # 4. Debounce and flush logic
+            if transcript and len(transcript.strip()) >= 2:
+                # Same phrase? They might have stopped adding new words.
+                if transcript == current_transcript:
+                    duplicate_count += 1
+                    # If we got the exact same transcript 2 chunks in a row, they stopped talking
+                    if duplicate_count >= 2:
+                        pending_text = current_transcript
+                        current_transcript = ""
+                        duplicate_count = 0
+                        session_pcm_bytes = b""  # Clear audio buffer
                 else:
-                    # Silence — flush buffer to LLM
-                    if transcript_buffer:
-                        pending_text = " ".join(transcript_buffer)
-                        transcript_buffer = []
-                        webm_chunks = [webm_chunks[0]]
-                    else:
-                        if len(webm_chunks) > 2:
-                            webm_chunks = [webm_chunks[0]]
-
-                # Force flush after 3 consecutive speech chunks
-                if len(transcript_buffer) >= 3:
-                    pending_text = " ".join(transcript_buffer)
-                    transcript_buffer = []
-                    webm_chunks = [webm_chunks[0]]
+                    # New words added!
+                    current_transcript = transcript
+                    duplicate_count = 0
+                    logger.info(f"[CALLER INPUT]: {transcript}")
+                    await websocket.send_text(f"STT: {transcript}")
+            else:
+                # VAD detected pure silence in the PCM
+                if current_transcript:
+                    # They were speaking, now stopped. Flush!
+                    pending_text = current_transcript
+                    current_transcript = ""
+                    duplicate_count = 0
+                    session_pcm_bytes = b""
+                else:
+                    # Pure silence, keep buffer small
+                    if len(session_pcm_bytes) > 64000:  # >2s of silence
+                        session_pcm_bytes = b""
 
             # NOTE: Caller audio is intentionally NOT pushed to Liquidsoap.
             # Previously every 2s chunk was queued, creating a 30-50s backlog
             # of caller audio ahead of the AI response in the playback queue.
 
-            # 4. Fire LLM → edge-TTS → WebSocket if we have flushed text
             if pending_text:
                 logger.info(f"[DISPATCH TO LLM]: '{pending_text}'")
-                # Cooldown: ignore STT for 3s so old audio isn't retranscribed into another dispatch
-                stt_cooldown_until = time.time() + 3.0
                 generation_id[0] += 1
                 my_id = generation_id[0]
                 generator = llm_generate.generate_conversational_response_stream(pending_text, show_profile)

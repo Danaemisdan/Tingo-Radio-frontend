@@ -102,5 +102,49 @@ class STTService:
                     try: os.remove(f)
                     except: pass
 
+    def transcribe_pcm(self, pcm_bytes: bytes) -> str:
+        """Transcribe raw 16kHz mono PCM bytes directly using numpy, avoiding WebM concatenation bugs"""
+        if not self.model or not pcm_bytes or len(pcm_bytes) < 16000:  # less than 0.5s
+            return ""
+        try:
+            import numpy as np
+            # Convert raw 16-bit PCM (s16le) to float32 numpy array
+            audio_array = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+            
+            segments, info = self.model.transcribe(
+                audio_array,
+                beam_size=3,
+                language="en",
+                vad_filter=True,
+                vad_parameters=dict(
+                    threshold=0.3,
+                    min_speech_duration_ms=100,
+                    min_silence_duration_ms=400,
+                )
+            )
+            
+            transcript = "".join(s.text for s in segments).strip()
+            
+            hallucinations = {
+                "Thank you.", "Thank you", "one", "done", "Bye.", "Thank you for watching.", 
+                "Thanks.", "You.", "Hey.", "Thank you so much.", "Please subscribe.", 
+                "Please rate and review.", ".", ",", "!", "?"
+            }
+            
+            if transcript in hallucinations:
+                return ""
+                
+            if "I'm going to try and get a new video." in transcript or "I don't know. Yeah. All right." in transcript:
+                return ""
+                
+            if transcript.count("Thank you") > 2 or transcript.count("All right") > 2:
+                return ""
+                
+            return transcript
+            
+        except Exception as e:
+            logger.error(f"PCM STT error: {e}")
+            return ""
+
 # We create a singleton so the model stays loaded in RAM
 stt_service = STTService()
