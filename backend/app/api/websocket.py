@@ -35,6 +35,7 @@ async def live_call_endpoint(websocket: WebSocket):
             "host2_name": "TingoAI Max"
         }
         call_active = [True]
+        generation_id = [0]
         transcript_buffer = []
 
         while True:
@@ -102,15 +103,20 @@ async def live_call_endpoint(websocket: WebSocket):
             # We only launch LLM/TTS if the debouncer flushed text this cycle
             if 'combined_text' in locals() and combined_text:
                 # 3. Stream the LLM text -> TTS -> WebSocket
+                generation_id[0] += 1 # Increment pointer to instantly kill any currently running threads!
                 generator = llm_generate.generate_conversational_response_stream(combined_text, show_profile)
                 
                 # Capture the primary main event loop safely BEFORE entering the thread block
                 main_loop = asyncio.get_running_loop()
                 
-                def consume_stream(text, state_flag):
+                def consume_stream(text, state_flag, gen_id, my_id):
                     try:
-                        logger.info("Inside consume_stream thread... starting generator loop!")
+                        logger.info(f"Thread {my_id} starting generator loop!")
                         for sentence in generator:
+                            if gen_id[0] != my_id:
+                                logger.info(f"Thread {my_id} aborted mid-sentence! Caller interrupted.")
+                                break
+                                
                             if not state_flag[0]:
                                 logger.info("Call ended explicitly. Aborting AI generation loop.")
                                 break
@@ -119,14 +125,14 @@ async def live_call_endpoint(websocket: WebSocket):
                             clean_sentence = re.sub(r'^[a-zA-Z0-9_ -]+:\s*', '', sentence).strip()
                             if not clean_sentence: continue
                             
-                            # Synthesize fragment
-                            ai_voice = VOICE_MAP.get(show_profile["host2_name"], "Dozy_target.wav")
+                            # Synthesize fragment: FORCED TO FEMALE 'Ife' target wav!
+                            ai_voice = "ife_target.wav"
                             chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
                             
                             try:
                                 generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav, is_interactive=True)
                                 
-                                if not state_flag[0]: break # Double check after slow synthesis block
+                                if not state_flag[0] or gen_id[0] != my_id: break # Double check after slow synthesis block
                                 
                                 with open(chunk_wav, "rb") as f:
                                     wav_data = f.read()
@@ -143,7 +149,7 @@ async def live_call_endpoint(websocket: WebSocket):
                         logger.error(f"CRITICAL consume_stream thread crash: {e}")
 
                 # Do NOT await this! It must run in the background so we can instantly return
-                t = asyncio.create_task(asyncio.to_thread(consume_stream, combined_text, call_active))
+                t = asyncio.create_task(asyncio.to_thread(consume_stream, combined_text, call_active, generation_id, generation_id[0]))
                 def _handle_ex(task):
                     if not task.cancelled() and task.exception():
                         logger.error(f"Task Failed: {task.exception()}")

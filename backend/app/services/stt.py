@@ -38,7 +38,22 @@ class STTService:
             for segment in segments:
                 transcript += segment.text + " "
                 
-            return transcript.strip()
+            clean_text = transcript.strip()
+            
+            # ABSOLUTE PREEMPTION: Faster-Whisper is notoriously hyper-sensitive. 
+            # In complete silence, it physically hallucinates phrases like "Thank you." 
+            # This causes the backend to infinitely stack AI replies to empty air, creating a 2-minute GPU backlog.
+            # We surgically eliminate these known hallucinations natively.
+            hallucinations = [
+                "Thank you.", "Thank you", "one", "done", "Bye.", 
+                "Thank you for watching.", "Thanks.", "You.", "Hey.", "Yeah.",
+                "Thank you so much.", "Please subscribe.", "Please rate and review."
+            ]
+            if clean_text in hallucinations:
+                logger.info(f"Filtered out STT hallucination: '{clean_text}'")
+                return ""
+                
+            return clean_text
         except Exception as e:
             logger.error(f"Transcription error: {e}")
             return ""
