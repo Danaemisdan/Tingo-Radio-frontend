@@ -81,6 +81,14 @@ class STTService:
                 logger.info(f"Filtered hallucination: '{transcript}'")
                 return ""
                 
+            # Heuristic filter for repetitive hallucinations produced by faster-whisper on static noise
+            if "I'm going to try and get a new video." in transcript or "I don't know. Yeah. All right." in transcript:
+                logger.info("Filtered heuristic hallucination phrase.")
+                return ""
+            if transcript.count("Thank you") > 2 or transcript.count("All right") > 2:
+                logger.info("Filtered repetitive hallucination loops.")
+                return ""
+                
             if transcript:
                 logger.info(f"STT [{self._model_size}]: '{transcript}'")
             return transcript

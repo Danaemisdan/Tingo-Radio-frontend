@@ -82,7 +82,9 @@ FORMAT RULES — FOLLOW EXACTLY:
             
             # CRITICAL: Prevent concurrent thread access to ggml-metal which causes EXC_BAD_ACCESS
             with self._lock:
-                response = self.llm.create_chat_completion(
+                from app.services.automation import _radio_state
+                
+                response_stream = self.llm.create_chat_completion(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -90,9 +92,21 @@ FORMAT RULES — FOLLOW EXACTLY:
                     max_tokens=1024,
                     temperature=0.85,
                     top_p=0.92,
-                    repeat_penalty=1.18
+                    repeat_penalty=1.18,
+                    stream=True
                 )
-            result = response["choices"][0]["message"]["content"]
+                
+                result = ""
+                for chunk in response_stream:
+                    # Instant abort mechanism: if caller comes online, drop the background batch!
+                    if _radio_state.get("current_segment") == "interactive":
+                        logger.warning("Aborting background LLM generation mid-stream because live caller took priority!")
+                        break
+                        
+                    delta = chunk["choices"][0]["delta"].get("content", "")
+                    if delta:
+                        result += delta
+
             return result
         except Exception as e:
             return f"{host1_name}: Thanks for tuning in to {show_name}!\n{host2_name}: We will be right back!"

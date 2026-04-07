@@ -126,10 +126,10 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
             finally:
                 loop.close()
 
-            # Decode MP3 → raw 24kHz WAV
-            # Single-step: decode MP3 → 24kHz mono WAV. No extra filters — they were timing out.
+            # Decode MP3 → raw 24kHz WAV with instant EQ filtering
             subprocess.run([
                 "ffmpeg", "-y", "-i", mp3_tmp,
+                "-filter_complex", "equalizer=f=3000:t=o:w=1:g=1.5,highpass=f=100,volume=1.2",
                 "-ar", "24000", "-ac", "1", output_path
             ], timeout=6, capture_output=True, check=True)
 
