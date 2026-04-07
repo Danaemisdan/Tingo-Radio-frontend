@@ -127,38 +127,15 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
                 loop.close()
 
             # Decode MP3 → raw 24kHz WAV
+            # Single-step: decode MP3 → 24kHz mono WAV. No extra filters — they were timing out.
             subprocess.run([
                 "ffmpeg", "-y", "-i", mp3_tmp,
-                "-ar", "24000", "-ac", "1", raw_wav
-            ], timeout=5, capture_output=True, check=True)
-
-            # Light radio warmth chain — subtle, not over-processed.
-            # anoisesrc generates a very quiet studio hiss at -55dB — mixed 50/50 with voice.
-            # equalizer adds mic warmth. No heavy compression or echo (makes it hollow).
-            noise_and_warmth = (
-                "[0:a]equalizer=f=3000:t=o:w=1:g=1.5,"
-                "highpass=f=100,volume=1.2[voice];"
-                "anoisesrc=r=24000:color=brown:a=0.0008[noise];"
-                "[voice][noise]amix=inputs=2:weights=1 0.3[out]"
-            )
-            result = subprocess.run([
-                "ffmpeg", "-y", "-i", raw_wav,
-                "-filter_complex", noise_and_warmth,
-                "-map", "[out]",
                 "-ar", "24000", "-ac", "1", output_path
-            ], timeout=8, capture_output=True)
-            
-            # If complex graph fails, fall back to simple conversion
-            if result.returncode != 0:
-                subprocess.run([
-                    "ffmpeg", "-y", "-i", raw_wav,
-                    "-ar", "24000", "-ac", "1", output_path
-                ], timeout=5, capture_output=True, check=True)
+            ], timeout=6, capture_output=True, check=True)
 
-            for f in [mp3_tmp, raw_wav]:
-                if os.path.exists(f):
-                    try: os.remove(f)
-                    except: pass
+            if os.path.exists(mp3_tmp):
+                try: os.remove(mp3_tmp)
+                except: pass
 
             logger.info(f"edge-tts OK → {edge_voice} rate={rate_pct} pitch={pitch_hz}")
             return
