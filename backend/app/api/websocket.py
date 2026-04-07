@@ -108,38 +108,47 @@ async def live_call_endpoint(websocket: WebSocket):
                 main_loop = asyncio.get_running_loop()
                 
                 def consume_stream(text, state_flag):
-                    for sentence in generator:
-                        if not state_flag[0]:
-                            logger.info("Call ended explicitly. Aborting AI generation loop.")
-                            break
-                        if not sentence.strip(): continue
-                        import re
-                        clean_sentence = re.sub(r'^[a-zA-Z0-9_ -]+:\s*', '', sentence).strip()
-                        if not clean_sentence: continue
-                        
-                        # Synthesize fragment
-                        ai_voice = VOICE_MAP.get(show_profile["host2_name"], "Dozy_target.wav")
-                        chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
-                        
-                        try:
-                            generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav)
+                    try:
+                        logger.info("Inside consume_stream thread... starting generator loop!")
+                        for sentence in generator:
+                            if not state_flag[0]:
+                                logger.info("Call ended explicitly. Aborting AI generation loop.")
+                                break
+                            if not sentence.strip(): continue
+                            import re
+                            clean_sentence = re.sub(r'^[a-zA-Z0-9_ -]+:\s*', '', sentence).strip()
+                            if not clean_sentence: continue
                             
-                            if not state_flag[0]: break # Double check after slow synthesis block
+                            # Synthesize fragment
+                            ai_voice = VOICE_MAP.get(show_profile["host2_name"], "Dozy_target.wav")
+                            chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
                             
-                            with open(chunk_wav, "rb") as f:
-                                wav_data = f.read()
+                            try:
+                                generate_line_audio_sync(clean_sentence, ai_voice, chunk_wav)
                                 
-                            # A) Blast audio to caller instantly using the correct main loop pointer
-                            asyncio.run_coroutine_threadsafe(websocket.send_bytes(wav_data), main_loop)
-                            
-                            # B) Queue to liquidsoap so the world hears it
-                            push_to_liquidsoap_sync(chunk_wav, queue_name="interactive_api")
-                            
-                        except Exception as e:
-                            logger.error(f"Failed to synthesize streamed chunk: {e}")
+                                if not state_flag[0]: break # Double check after slow synthesis block
+                                
+                                with open(chunk_wav, "rb") as f:
+                                    wav_data = f.read()
+                                    
+                                # A) Blast audio to caller instantly using the correct main loop pointer
+                                asyncio.run_coroutine_threadsafe(websocket.send_bytes(wav_data), main_loop)
+                                
+                                # B) Queue to liquidsoap so the world hears it
+                                push_to_liquidsoap_sync(chunk_wav, queue_name="interactive_api")
+                                
+                            except Exception as e:
+                                logger.error(f"Failed to synthesize streamed chunk: {e}")
+                    except Exception as e:
+                        logger.error(f"CRITICAL consume_stream thread crash: {e}")
 
                 # Do NOT await this! It must run in the background so we can instantly return
-                asyncio.create_task(asyncio.to_thread(consume_stream, combined_text, call_active))
+                t = asyncio.create_task(asyncio.to_thread(consume_stream, combined_text, call_active))
+                def _handle_ex(task):
+                    if not task.cancelled() and task.exception():
+                        logger.error(f"Task Failed: {task.exception()}")
+                t.add_done_callback(_handle_ex)
+                
                 del combined_text # Clear memory so next loop doesn't immediately fire it again
 
     except WebSocketDisconnect:
