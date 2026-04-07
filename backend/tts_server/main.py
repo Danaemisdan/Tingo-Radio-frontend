@@ -14,6 +14,7 @@ torch.load = _patched_load
 from TTS.api import TTS
 import tempfile
 import uuid
+import gc
 
 app = FastAPI(title="Local XTTS Server")
 
@@ -89,6 +90,17 @@ async def synthesize(request: SynthesizeRequest):
                 temperature=0.75,
                 speed=0.92
             )
+
+        # CRITICAL MEMORY LEAK FIX FOR MAC:
+        # PyTorch MPS Unified Memory retains latent graphs permanently, swapping to SSD and violently crashing the OS.
+        # We forcibly annihilate the local tensors and execute a global hardware teardown of the MPS cache.
+        if 'out' in locals(): del out
+        if 'wav_tensor' in locals(): del wav_tensor
+        gc.collect()
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+        elif torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         return FileResponse(output_filename, media_type="audio/wav")
 
