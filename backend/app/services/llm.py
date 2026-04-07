@@ -167,8 +167,8 @@ RULES:
         """
         Sub-Second Streaming conversational mode. Yields complete sentences one by one.
         """
-        host1_name = show_profile.get("host1_name", "Ife")
-        host2_name = show_profile.get("host2_name", "Dozy")
+        host1_name = show_profile.get("host1_name", "Dozy")
+        host2_name = show_profile.get("host2_name", "Ife")
         
         is_new_caller = len(self.conversation_memory) == 0
         is_man_vs_machine = "Man vs Machine" in show_profile.get("show_name", "")
@@ -197,8 +197,8 @@ RULES:
 """
 
         self.conversation_memory.append({"role": "user", "content": f"CALLER SAYS: {caller_text}"})
-        if len(self.conversation_memory) > 6:
-            self.conversation_memory = self.conversation_memory[-6:]
+        if len(self.conversation_memory) > 3:
+            self.conversation_memory = self.conversation_memory[-3:]
 
         messages = [{"role": "system", "content": system_prompt}] + self.conversation_memory
 

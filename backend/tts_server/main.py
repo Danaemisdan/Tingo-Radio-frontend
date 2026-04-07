@@ -18,7 +18,7 @@ import uuid
 app = FastAPI(title="Local XTTS Server")
 
 # Initialize Coqui XTTS model
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Loading XTTS model on {device}...")
 tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
 print("Model loaded successfully.")
