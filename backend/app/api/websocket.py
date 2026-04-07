@@ -38,6 +38,11 @@ async def live_call_endpoint(websocket: WebSocket):
         call_active = [True]
         generation_id = [0]
         transcript_buffer = []
+        # CRITICAL FIX: WebM MediaRecorder's first chunk contains the EBML container
+        # header. Every subsequent chunk is raw cluster data with NO headers.
+        # ffmpeg silently fails to decode headerless blobs → Whisper gets empty audio.
+        # Solution: store the first chunk and prepend it to ALL subsequent chunks.
+        webm_header = [None]
         
         # CRITICAL: Reset AI memory so every new caller gets a fresh intro + name-ask.
         # Without this, the AI skips greetings because it thinks it already met you.
@@ -61,8 +66,14 @@ async def live_call_endpoint(websocket: WebSocket):
                     _AS.silent(duration=120000).export(silence_path, format="wav")
                 push_to_liquidsoap_sync(silence_path, queue_name="show_api")
             
-            # 2. Fast STT
-            transcript = stt_service.transcribe_audio_chunk(data)
+            # 2. Fast STT — prepend WebM header to every chunk so ffmpeg can decode them
+            if webm_header[0] is None:
+                webm_header[0] = data  # Save first chunk (has EBML container headers)
+                stt_input = data
+            else:
+                stt_input = webm_header[0] + data  # Subsequent chunks need header prepended
+            
+            transcript = stt_service.transcribe_audio_chunk(stt_input)
             
             # 3. Buffer and Debounce
             # If the user paused speaking (silence), or if they've spoken non-stop for 6 seconds (3 chunks)

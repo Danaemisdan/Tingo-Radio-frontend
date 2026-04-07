@@ -70,40 +70,27 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
         logger.warning("Aborting background TTS generation because live caller took priority!")
         raise CallerInterruptedException({"type": "live_caller_override_tts"})
     
-    # Strip ALL bracketed emotion tags anywhere in the prompt string so Coqui doesn't literally pronounce them.
+    # Strip ALL bracketed/parenthetical stage direction tags (LLM loves adding these)
     text = re.sub(r'\[.*?\]', '', text).strip()
-    
-    # Force Coqui to spell out "A I" without dragging out the pause
-    text = re.sub(r'\bAI\b', 'A I', text)
-    text = re.sub(r'\bAi\b', 'A I', text)
-    
-    # Prevent XTTS from literally sounding out "dot dot dot"
-    text = text.replace("...", ", ")
+    text = re.sub(r'\(.*?\)', '', text).strip()
+    # Strip asterisk actions (*laughs*, *sighs*)
+    text = re.sub(r'\*[^*]+\*', '', text).strip()
+    # Clean up dashes and ellipses that TTS reads weirdly
+    text = text.replace("...", ", ").replace(" -- ", ", ").replace("—", ", ").strip()
+    # Strip emojis that make XTTS moan/hum
+    text = re.sub(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U00002702-\U000027B0]+', '', text).strip()
 
     # ----------------------------------------------------------------
-    # HUMAN SPEECH NORMALIZATION (applied to ALL synthesis paths)
-    # Fixes robot-speak artifacts produced by LLM text output
+    # SHARED FILLER NORMALIZATION (both XTTS and edge-tts paths)
     # ----------------------------------------------------------------
-    FILLER_MAP = {
-        # Filler sounds — LLM often outputs these as letters
-        r'\bMm\b':   'hmm',
-        r'\bmm\b':   'hmm',
-        r'\bMhm\b':  'mm-hmm',
-        r'\bmhm\b':  'mm-hmm',
-        r'\bUhh\b':  'uh',
-        r'\buhh\b':  'uh',
-        # Abbreviations that TTS reads letter-by-letter
-        r'\bAI\b':   'A.I.',
-        r'\bOAP\b':  'O.A.P.',
-        r'\bMIC\b':  'mike',
-        # Natural speech contractions TTS misses
-        r"\bwon't\b": "wont",
-        r"\bcan't\b": "cant",
+    SHARED_MAP = {
+        r'\bMm\b': 'hmm',   r'\bmm\b': 'hmm',
+        r'\bMhm\b': 'mm-hmm', r'\bmhm\b': 'mm-hmm',
+        r'\bUhh\b': 'uh',   r'\buhh\b': 'uh',
+        r'\bOAP\b': 'O-A-P', r'\bMIC\b': 'mike',
     }
-    for pattern, replacement in FILLER_MAP.items():
-        text = re.sub(pattern, replacement, text)
-    # Clean trailing punctuation artifacts from LLM streaming
-    text = text.replace("...", ", ").replace("—", ", ").strip()
+    for p, r in SHARED_MAP.items():
+        text = re.sub(p, r, text)
 
     if is_interactive:
         # ================================================================
@@ -125,9 +112,12 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
         mp3_tmp = output_path.replace(".wav", "_edge.mp3")
         raw_wav = output_path.replace(".wav", "_raw.wav")
         try:
+            # edge-tts needs "A.I." to say it naturally; XTTS handles "AI" fine on its own
+            edge_text = re.sub(r'\bAI\b', 'A.I.', text)
+            edge_text = re.sub(r'\bAi\b', 'A.I.', edge_text)
+
             async def _synth():
-                # Use native rate/pitch params — NOT SSML block (that breaks synthesis silently)
-                comm = edge_tts.Communicate(text, edge_voice, rate=rate_pct, pitch=pitch_hz)
+                comm = edge_tts.Communicate(edge_text, edge_voice, rate=rate_pct, pitch=pitch_hz)
                 await comm.save(mp3_tmp)
 
             loop = asyncio.new_event_loop()
@@ -136,31 +126,34 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
             finally:
                 loop.close()
 
-            # Step 1 — decode MP3 → raw 24kHz WAV
+            # Decode MP3 → raw 24kHz WAV
             subprocess.run([
                 "ffmpeg", "-y", "-i", mp3_tmp,
                 "-ar", "24000", "-ac", "1", raw_wav
             ], timeout=5, capture_output=True, check=True)
 
-            # Step 2 — radio broadcast processing chain:
-            #   acompressor : loudness/dynamic range like a real broadcast mic
-            #   equalizer   : +2dB warmth at 2kHz for voice presence
-            #   highpass    : cut low rumble (mic table noise)
-            #   lowpass     : cut harshness above 10kHz
-            #   aecho       : tiny room reflection — sounds like a real studio, not a void
-            radio_chain = (
-                "acompressor=threshold=-18dB:ratio=4:attack=5:release=100,"
-                "equalizer=f=2000:t=o:w=1:g=2,"
-                "highpass=f=120,"
-                "lowpass=f=10000,"
-                "aecho=0.85:0.5:25:0.12,"
-                "volume=1.3"
+            # Light radio warmth chain — subtle, not over-processed.
+            # anoisesrc generates a very quiet studio hiss at -55dB — mixed 50/50 with voice.
+            # equalizer adds mic warmth. No heavy compression or echo (makes it hollow).
+            noise_and_warmth = (
+                "[0:a]equalizer=f=3000:t=o:w=1:g=1.5,"
+                "highpass=f=100,volume=1.2[voice];"
+                "anoisesrc=r=24000:color=brown:a=0.0008[noise];"
+                "[voice][noise]amix=inputs=2:weights=1 0.3[out]"
             )
-            subprocess.run([
+            result = subprocess.run([
                 "ffmpeg", "-y", "-i", raw_wav,
-                "-af", radio_chain,
+                "-filter_complex", noise_and_warmth,
+                "-map", "[out]",
                 "-ar", "24000", "-ac", "1", output_path
-            ], timeout=8, capture_output=True, check=True)
+            ], timeout=8, capture_output=True)
+            
+            # If complex graph fails, fall back to simple conversion
+            if result.returncode != 0:
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", raw_wav,
+                    "-ar", "24000", "-ac", "1", output_path
+                ], timeout=5, capture_output=True, check=True)
 
             for f in [mp3_tmp, raw_wav]:
                 if os.path.exists(f):
