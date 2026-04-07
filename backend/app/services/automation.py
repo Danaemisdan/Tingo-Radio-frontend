@@ -203,6 +203,12 @@ def _automation_loop_sync(stop_event: threading.Event):
 
     while not stop_event.is_set():
         try:
+            # If a human is actively on a call, entirely freeze the background automated generator
+            # so it NEVER steals the LLM lock from the live caller!
+            if _radio_state.get("current_segment") == "interactive":
+                time.sleep(2)
+                continue
+
             shows = load_shows()
             if not shows:
                 time.sleep(10)
