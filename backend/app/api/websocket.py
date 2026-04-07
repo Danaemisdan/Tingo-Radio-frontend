@@ -70,14 +70,9 @@ async def live_call_endpoint(websocket: WebSocket):
                 transcript_buffer.append(transcript)
                 logger.info(f"[CALLER INPUT]: {transcript}")
                 await websocket.send_text(f"STT: {transcript}")
-                
-                if len(transcript_buffer) >= 3:
-                    combined_text = " ".join(transcript_buffer)
-                    transcript_buffer = []
-                else:
-                    # Still accumulating their continuous speech, do not interrupt yet
-                    # But we'll still broadcast their raw voice to radio right now
-                    pass
+                # Still accumulating their continuous speech, do not interrupt yet
+                # We'll broadcast their raw voice to radio right now via ffmpeg transcode below
+                pass
             
             # Broadcast caller's raw audio chunk to the world so they hear the caller speak too
             # We convert the raw WebM byte buffer to a pure WAV file for Liquidsoap compatibility
@@ -145,6 +140,7 @@ async def live_call_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         call_active[0] = False
+        skip_liquidsoap_track() # INSTANTLY terminate AI voice on the speakers and return to music stream
         manager.disconnect(websocket)
     except Exception as e:
         logger.error(f"WebSocket Terminal Error: {e}")
