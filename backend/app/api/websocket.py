@@ -38,58 +38,62 @@ async def live_call_endpoint(websocket: WebSocket):
         call_active = [True]
         generation_id = [0]
         transcript_buffer = []
-        # CRITICAL FIX: WebM MediaRecorder's first chunk contains the EBML container
-        # header. Every subsequent chunk is raw cluster data with NO headers.
-        # ffmpeg silently fails to decode headerless blobs → Whisper gets empty audio.
-        # Solution: store the first chunk and prepend it to ALL subsequent chunks.
-        webm_header = [None]
+        # Rolling WebM chunk buffer.
+        # MediaRecorder emits a stream: chunk[0] has EBML headers + first audio cluster,
+        # chunk[1,2,...] have only audio cluster data (no headers).
+        # We keep ALL chunks so the combined bytes form a complete decodable WebM file.
+        # After flushing to the LLM, we reset to [chunk[0]] to keep the headers for next utterance.
+        webm_chunks: list[bytes] = []
         
-        # CRITICAL: Reset AI memory so every new caller gets a fresh intro + name-ask.
-        # Without this, the AI skips greetings because it thinks it already met you.
+        # Reset AI memory so every new caller gets a fresh greeting.
         llm_generate.reset_conversation()
 
         while True:
-            # 1. We receive WebM audio chunks ~every 2 seconds from the browser
+            # 1. Receive WebM audio chunks (~2s each from browser MediaRecorder)
             data = await websocket.receive_bytes()
-            if not data: continue
+            if not data:
+                continue
             
-            # Immediately tell backend we are aggressively in interactive mode
+            # Push chunk into rolling buffer (always keep first chunk for WebM headers)
+            webm_chunks.append(data)
+            # Safety: cap at 8 chunks (16s) to prevent unbounded memory growth
+            if len(webm_chunks) > 8:
+                webm_chunks = [webm_chunks[0]] + webm_chunks[-7:]
+            
+            # Immediately switch to interactive mode
             if _radio_state["current_segment"] != "interactive":
                 _radio_state["is_show_live"] = True
                 _radio_state["current_segment"] = "interactive"
                 skip_liquidsoap_track()
-                
-                # Push silence to the underlying show queue.
                 silence_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/silence_120s.wav"))
                 if not os.path.exists(silence_path):
                     from pydub import AudioSegment as _AS
                     _AS.silent(duration=120000).export(silence_path, format="wav")
                 push_to_liquidsoap_sync(silence_path, queue_name="show_api")
             
-            # 2. Fast STT — prepend WebM header to every chunk so ffmpeg can decode them
-            if webm_header[0] is None:
-                webm_header[0] = data  # Save first chunk (has EBML container headers)
-                stt_input = data
-            else:
-                stt_input = webm_header[0] + data  # Subsequent chunks need header prepended
-            
+            # 2. STT — feed the COMPLETE accumulated buffer (always has full WebM headers)
+            stt_input = b"".join(webm_chunks)
             transcript = stt_service.transcribe_audio_chunk(stt_input)
             
-            # 3. Buffer and Debounce
-            # If the user paused speaking (silence), or if they've spoken non-stop for 6 seconds (3 chunks)
+            # 3. Debounce: accumulate speech, flush on silence
             if not transcript or len(transcript.strip()) < 2:
                 if transcript_buffer:
                     combined_text = " ".join(transcript_buffer)
                     transcript_buffer = []
+                    # Reset to just first chunk (WebM headers preserved, audio cleared)
+                    webm_chunks = [webm_chunks[0]]
                 else:
-                    continue  # Just normal background silence, ignore
+                    # Pure silence with empty buffer — reset rolling buffer to keep memory clean
+                    if len(webm_chunks) > 2:
+                        webm_chunks = [webm_chunks[0]]
+                    continue
             else:
-                transcript_buffer.append(transcript)
-                logger.info(f"[CALLER INPUT]: {transcript}")
-                await websocket.send_text(f"STT: {transcript}")
-                # Still accumulating their continuous speech, do not interrupt yet
-                # We'll broadcast their raw voice to radio right now via ffmpeg transcode below
-                pass
+                # Only add if it's new content (avoid duplicate appends from same audio window)
+                if not transcript_buffer or transcript_buffer[-1] != transcript:
+                    transcript_buffer.append(transcript)
+                    logger.info(f"[CALLER INPUT]: {transcript}")
+                    await websocket.send_text(f"STT: {transcript}")
+                continue  # Keep buffering speech — don't go to LLM yet
             
             # Broadcast caller's raw audio chunk to the world so they hear the caller speak too
             # We convert the raw WebM byte buffer to a pure WAV file for Liquidsoap compatibility
