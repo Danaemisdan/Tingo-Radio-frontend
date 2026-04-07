@@ -135,10 +135,14 @@ def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str =
         if stop_event.is_set():
             return
         
+        # Absolute preemption: If a caller clicked Call In, abort background generation immediately!
+        if _radio_state.get("current_segment") == "interactive":
+            raise CallerInterruptedException({"type": "live_caller_override"})
+            
         interaction = get_next_audience_interaction()
         if interaction:
             raise CallerInterruptedException(interaction)
-            
+        
         time.sleep(1)
 
 from pydub import AudioSegment

@@ -77,23 +77,27 @@ async def live_call_endpoint(websocket: WebSocket):
             # Broadcast caller's raw audio chunk to the world so they hear the caller speak too
             # We convert the raw WebM byte buffer to a pure WAV file for Liquidsoap compatibility
             caller_wav = os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:6]}.wav")
-            caller_wav = os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:6]}.wav")
-            try:
-                import subprocess
-                webm_tmp = caller_wav.replace(".wav", ".webm")
-                with open(webm_tmp, "wb") as f:
-                    f.write(data)
-                
-                # Use a strict hard-timeout ffmpeg call so it NEVER hangs the websocket loop!
-                subprocess.run([
-                    "ffmpeg", "-y", "-i", webm_tmp, 
-                    "-ar", "24000", "-ac", "1", caller_wav
-                ], timeout=3, capture_output=True)
-                
-                if os.path.exists(caller_wav):
-                    push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
-            except Exception as e:
-                logger.error(f"Failed to transcode and push caller audio to liquidsoap: {e}")
+            
+            def transcode_and_push():
+                try:
+                    import subprocess
+                    webm_tmp = caller_wav.replace(".wav", ".webm")
+                    with open(webm_tmp, "wb") as f:
+                        f.write(data)
+                    
+                    # Use a strict hard-timeout ffmpeg call so it NEVER hangs
+                    subprocess.run([
+                        "ffmpeg", "-y", "-i", webm_tmp, 
+                        "-ar", "24000", "-ac", "1", caller_wav
+                    ], timeout=3, capture_output=True)
+                    
+                    if os.path.exists(caller_wav):
+                        push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
+                except Exception as e:
+                    logger.error(f"Failed to transcode and push caller audio to liquidsoap: {e}")
+
+            # Do NOT block the event loop with ffmpeg! Fire and forget it!
+            asyncio.create_task(asyncio.to_thread(transcode_and_push))
             
             # We only launch LLM/TTS if the debouncer flushed text this cycle
             if 'combined_text' in locals() and combined_text:

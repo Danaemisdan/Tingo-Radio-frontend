@@ -214,9 +214,25 @@ RULES:
             acquired = self._lock.acquire(timeout=0.1)
             if not acquired:
                 logger.warning("LLM lock busy (background generation running) — yielding canned caller welcome stream!")
-                canned = f"{host1_name}: Yo, hold that thought! We have a caller on the line right now. Who is this?"
+                
+                # We need a variety of canned stalls.
+                stalls = [
+                    f"{host1_name}: Yo, hold that thought! We have a caller on the line right now. Who is this?",
+                    f"{host1_name}: Hang on! Let me get this caller on the live feed. You there?",
+                    f"{host2_name}: Standby. I am patching the caller through the manual switchboard.",
+                    f"{host1_name}: Give me a sec, I think we have someone breaking into the frequency. Hello?"
+                ]
+                import random
+                canned = random.choice(stalls)
+                
+                # CRITICAL AMNESIA FIX:
+                # Do NOT permanently save this disrupted interaction to memory! 
+                # If we do, the AI will hallucinate that it already asked the user to hold 5 times.
+                # We must carefully pop the user's message we just appended above, reverting the context backwards.
+                if self.conversation_memory and self.conversation_memory[-1]["role"] == "user":
+                    self.conversation_memory.pop()
+                    
                 yield canned
-                self.conversation_memory.append({"role": "assistant", "content": canned})
                 return
                 
             try:
