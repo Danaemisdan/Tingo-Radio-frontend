@@ -32,7 +32,7 @@ _REQUEST_PATTERNS = [
     r"(.+)\s+(?:next|please|pls|plz)$",
 ]
 
-def detect_song_request(text: str) -> str | None:
+def detect_song_request(text: str):
     """
     Returns the requested song name string if the message looks like a song request,
     otherwise returns None.
@@ -48,7 +48,7 @@ def detect_song_request(text: str) -> str | None:
     return None
 
 
-def find_best_matching_song(query: str) -> tuple[str, str] | None:
+def find_best_matching_song(query: str):
     """
     Fuzzy-matches the query against MP3 filenames in the music directory.
     Returns (song_title, file_path) or None if no good match is found.
@@ -129,7 +129,7 @@ def generate_song_request_response_sync(sender: str, song_title: str, found: boo
 
 # ── Queue management ─────────────────────────────────────────────────────────
 
-def get_next_song_request() -> dict | None:
+def get_next_song_request():
     """Pull the oldest pending request from the queue."""
     with _request_lock:
         if _song_request_queue:
@@ -137,7 +137,7 @@ def get_next_song_request() -> dict | None:
     return None
 
 
-def process_message_for_song_request(message: dict, host1: str = "Ife", host2: str = "Tingo") -> dict | None:
+def process_message_for_song_request(message: dict, host1: str = "Ife", host2: str = "Tingo"):
     """
     Called by the automation loop or chat endpoint for every incoming message.
     If a song request is detected:

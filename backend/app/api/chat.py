@@ -196,7 +196,7 @@ _FALLBACKS = [
 
 AI_HOST_NAMES = ["Ife (AI Host) 🎙️", "Tingo AI Radio 🤖"]
 
-def _get_instant_reply(text: str) -> str | None:
+def _get_instant_reply(text: str):
     """Multi-stage matching: exact phrases first, then topics, then fallback."""
     t = text.lower().strip()
 

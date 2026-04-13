@@ -102,7 +102,7 @@ def generate_ad_sync(ad: dict) -> str:
         return ""
 
 
-def get_next_ad() -> dict | None:
+def get_next_ad():
     """Pull the oldest ready ad from the queue. Returns None if empty."""
     with _queue_lock:
         if _ad_queue:
