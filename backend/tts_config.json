@@ -1,5 +1,5 @@
 {
-    "interactive_engine": "edge_tts",
+    "interactive_engine": "xtts",
     "kokoro": {
         "female_voice": "bf_emma",
         "male_voice": "bm_george"
