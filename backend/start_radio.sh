@@ -74,43 +74,8 @@ else
     sleep 3
 fi
 
-# ─── Start Coqui XTTS Server on :8001 ────────────────────────────────────────
-# This is the ONLY TTS engine. It does zero-shot voice cloning for all shows/ads.
-if [ -d "$BACKEND_DIR/tts_server" ]; then
-    echo "🗣️  Starting Coqui XTTS on :8001..."
-    cd "$BACKEND_DIR/tts_server"
-
-    if [ ! -d "xtts_env" ]; then
-        echo "   🌀 First run: building XTTS environment (this takes a few minutes)..."
-        "$PYTHON_CMD" -m venv xtts_env
-        . xtts_env/bin/activate
-        pip install -q -U pip
-
-        # Install PyTorch for Apple Silicon FIRST before TTS to avoid numpy conflict
-        pip install -q torch torchaudio
-
-        # Install Coqui TTS — allow it to override numpy to its needed version (1.22.x)
-        pip install -q TTS
-
-        # Now install the server layer on top
-        pip install -q fastapi uvicorn requests pydub
-    else
-        if [ -f "xtts_env/bin/activate" ]; then
-            . xtts_env/bin/activate
-        fi
-    fi
-
-    nohup python -m uvicorn main:app --host 0.0.0.0 --port 8001 > /tmp/tts_server.log 2>&1 &
-    echo "   ⏳ XTTS loading model (takes ~30-60s on first run)..."
-
-    # Re-activate the main venv for the FastAPI server
-    cd "$BACKEND_DIR"
-    if [ -f ".venv/bin/activate" ]; then
-        . .venv/bin/activate
-    elif [ -f "venv/bin/activate" ]; then
-        . venv/bin/activate
-    fi
-fi
+# NOTE: Shows and ads use edge-tts (en-NG-EzinneNeural / en-NG-AbeoNeural) directly.
+# No separate TTS server needed — edge-tts is in the main .venv.
 
 # ─── Start FastAPI Backend on :8080 ───────────────────────────────────────────
 echo "⚙️  Starting FastAPI on :8080..."

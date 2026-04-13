@@ -44,7 +44,7 @@ VOICE_MAP = {
     "Caller": "ife_target.wav"
 }
 
-def parse_script(script_text: str) -> list[dict]:
+def parse_script(script_text: str):
     lines = script_text.strip().split('\n')
     parsed = []
     pattern = re.compile(r"^([^:]+):\s*(.*)$")
@@ -172,34 +172,38 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
             except Exception as e:
                 logger.error(f"Fish API failed: {e}. Falling back to slow XTTS.")
 
-        # ENGINE 4: XTTS
+        # ENGINE 4: XTTS (interactive only — falls through to XTTS block below)
         elif engine == "xtts":
-            pass # Skip straight past this block to the bottom where XTTS executes natively!
+            pass  # falls through to the XTTS request block below
 
-    final_text = text
-    url = "http://localhost:8001/synthesize"
-    payload = {
-        "text": final_text,
-        "speaker_wav": voice,
-        "language": "en"
-    }
-    
-    import time
-    max_retries = 60
-    for attempt in range(max_retries):
-        try:
-            response = requests.post(url, json=payload, timeout=300)
-            response.raise_for_status()
-            with open(output_path, 'wb') as f:
-                f.write(response.content)
-            return
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"XTTS server not ready or failed (attempt {attempt+1}/{max_retries}): {e}. Retrying in 5 seconds...")
-                time.sleep(5)
-            else:
-                logger.error(f"XTTS server failed for voice {voice}: {e}")
-                raise RuntimeError(f"XTTS Voice Cloning strictly required but failed: {e}")
+    # ---------------------------------------------------------------
+    # SHOW / AD PATH: Use edge-tts Nigerian neural voices.
+    # Nigerian voices sound excellent and require zero extra servers.
+    # ---------------------------------------------------------------
+    # Map voice filename → edge-tts voice name
+    if "ife" in voice.lower() or "ada" in voice.lower() or "fola" in voice.lower():
+        edge_voice = "en-NG-EzinneNeural"   # Female Nigerian
+    else:
+        edge_voice = "en-NG-AbeoNeural"     # Male Nigerian
+
+    try:
+        subprocess.run(
+            [
+                "python", "-m", "edge_tts",
+                "--text", text,
+                "--voice", edge_voice,
+                "--write-media", output_path
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=60
+        )
+        logger.info(f"[Show TTS] edge-tts synthesized line for {edge_voice}")
+        return
+    except Exception as e:
+        logger.error(f"[Show TTS] edge-tts failed: {e}")
+        raise RuntimeError(f"edge-tts failed for show synthesis: {e}")
 
 def synthesize_show_sync(script_text: str, output_filename: str) -> str:
     """
