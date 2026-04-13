@@ -24,7 +24,11 @@ if [ ! -d "venv" ] && [ ! -d ".venv" ]; then
     echo "🌀 Virtual environment missing. Creating fresh .venv for Mac Studio..."
     python3 -m venv .venv
 fi
-source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+if [ -f "venv/bin/activate" ]; then
+    . venv/bin/activate
+elif [ -f ".venv/bin/activate" ]; then
+    . .venv/bin/activate
+fi
 
 # Always ensure requirements.txt is met on cold start
 if [ -f "requirements.txt" ]; then
@@ -88,18 +92,22 @@ if [ -d "$BACKEND_DIR/tts_server" ]; then
   if [ ! -d "xtts_env" ]; then
       echo "🌀 XTTS environment missing. Auto-installing massive Coqui TTS dependencies locally..."
       python3 -m venv xtts_env
-      source xtts_env/bin/activate
+      . xtts_env/bin/activate
       pip install -U pip
       # Install specific MacOS Torch versions to unlock Apple Silicon acceleration
       pip install torch torchaudio
       pip install TTS fastapi uvicorn requests pydub
   else
-      source xtts_env/bin/activate 2>/dev/null || true
+      if [ -f "xtts_env/bin/activate" ]; then . xtts_env/bin/activate; fi
   fi
   
   nohup python -m uvicorn main:app --host 0.0.0.0 --port 8001 > /tmp/tts_server.log 2>&1 &
   cd "$BACKEND_DIR"
-  source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+  if [ -f "venv/bin/activate" ]; then
+      . venv/bin/activate
+  elif [ -f ".venv/bin/activate" ]; then
+      . .venv/bin/activate
+  fi
 fi
 
 # ============================================================
@@ -119,14 +127,14 @@ if [ -d "$BACKEND_DIR/fish-speech" ]; then
     if [ ! -d "fish_env" ]; then
         echo "   🌀 Fish environment missing. Building Apple Silicon PyTorch container..."
         python3 -m venv fish_env
-        source fish_env/bin/activate
+        . fish_env/bin/activate
         pip install -U pip
         # Essential MacOS torch setup for Fish Audio MPS acceleration
         pip install torch torchaudio torchvision
         # Build Fish Audio
         pip install -e .
     else
-        source fish_env/bin/activate 2>/dev/null || true
+        if [ -f "fish_env/bin/activate" ]; then . fish_env/bin/activate; fi
     fi
     
     echo "   🚀 Launching Fish API Server in background..."
@@ -134,7 +142,11 @@ if [ -d "$BACKEND_DIR/fish-speech" ]; then
     nohup python -m tools.api_server --listen 0.0.0.0:8082 > /tmp/fish_server.log 2>&1 &
     
     cd "$BACKEND_DIR"
-    source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+    if [ -f "venv/bin/activate" ]; then
+        . venv/bin/activate
+    elif [ -f ".venv/bin/activate" ]; then
+        . .venv/bin/activate
+    fi
 fi
 
 # Start FastAPI
