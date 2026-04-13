@@ -20,9 +20,14 @@ sleep 2
 
 cd "$BACKEND_DIR"
 
+PYTHON_CMD="/usr/bin/python3"
+if [ ! -x "$PYTHON_CMD" ]; then
+    PYTHON_CMD=$(command -v python3)
+fi
+
 if [ ! -d "venv" ] && [ ! -d ".venv" ]; then
     echo "🌀 Virtual environment missing. Creating fresh .venv for Mac Studio..."
-    python3 -m venv .venv
+    "$PYTHON_CMD" -m venv .venv
 fi
 if [ -f "venv/bin/activate" ]; then
     . venv/bin/activate
@@ -91,7 +96,7 @@ if [ -d "$BACKEND_DIR/tts_server" ]; then
   
   if [ ! -d "xtts_env" ]; then
       echo "🌀 XTTS environment missing. Auto-installing massive Coqui TTS dependencies locally..."
-      python3 -m venv xtts_env
+      "$PYTHON_CMD" -m venv xtts_env
       . xtts_env/bin/activate
       pip install -U pip
       # Install specific MacOS Torch versions to unlock Apple Silicon acceleration
@@ -126,7 +131,7 @@ if [ -d "$BACKEND_DIR/fish-speech" ]; then
     
     if [ ! -d "fish_env" ]; then
         echo "   🌀 Fish environment missing. Building Apple Silicon PyTorch container..."
-        python3 -m venv fish_env
+        "$PYTHON_CMD" -m venv fish_env
         . fish_env/bin/activate
         pip install -U pip
         # Essential MacOS torch setup for Fish Audio MPS acceleration
