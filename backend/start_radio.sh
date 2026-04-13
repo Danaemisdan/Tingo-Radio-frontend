@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 # ============================================================
 # Tingo AI Radio — Full Stack Startup Script
-# Run once to start everything. Copy the printed URLs to Vercel.
+# Coqui XTTS is the ONLY TTS engine. No Fish. No Kokoro.
+# Run from the backend/ directory.
 # ============================================================
 
 BACKEND_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(dirname "$BACKEND_DIR")"
 
 echo "🎙️  Tingo AI Radio — Starting Up..."
 echo "====================================="
@@ -14,185 +14,142 @@ echo "====================================="
 echo "🧹 Cleaning up stale processes..."
 pkill -9 -f "uvicorn" 2>/dev/null || true
 pkill -9 -f "liquidsoap" 2>/dev/null || true
-pkill -9 -f "icecast2|icecast -c" 2>/dev/null || true
+pkill -9 -f "icecast2" 2>/dev/null || true
+pkill -9 -f "icecast -c" 2>/dev/null || true
 pkill -9 -f "cloudflared" 2>/dev/null || true
 sleep 2
 
 cd "$BACKEND_DIR"
 
+# ─── Python: always use Apple's locked-in 3.9 so PyArmor decrypts correctly ───
 PYTHON_CMD="/usr/bin/python3"
 if [ ! -x "$PYTHON_CMD" ]; then
-    PYTHON_CMD=$(command -v python3)
+    PYTHON_CMD="$(command -v python3)"
 fi
 
-if [ ! -d "venv" ] && [ ! -d ".venv" ]; then
-    echo "🌀 Virtual environment missing. Creating fresh .venv for Mac Studio..."
+# ─── Main virtualenv ───────────────────────────────────────────────────────────
+if [ ! -d ".venv" ] && [ ! -d "venv" ]; then
+    echo "🌀 Creating fresh .venv..."
     "$PYTHON_CMD" -m venv .venv
 fi
-if [ -f "venv/bin/activate" ]; then
-    . venv/bin/activate
-elif [ -f ".venv/bin/activate" ]; then
+
+if [ -f ".venv/bin/activate" ]; then
     . .venv/bin/activate
+elif [ -f "venv/bin/activate" ]; then
+    . venv/bin/activate
 fi
 
-# Always ensure requirements.txt is met on cold start
+# ─── Install backend dependencies ─────────────────────────────────────────────
 if [ -f "requirements.txt" ]; then
-    echo "📦 Satisfying requirements.txt..."
-    python -m pip install -r requirements.txt
+    echo "📦 Installing backend requirements..."
+    pip install -q -r requirements.txt 2>&1 | grep -E "^(ERROR|Successfully installed|Collecting llama)" || true
 fi
 
-# ============================================================
-# AUTO-DEPENDENCY CHECKER (For fresh Mac Studio deployments)
-# ============================================================
-echo "📦 Checking system and Python dependencies..."
-
-# System Dependencies via Homebrew
+# ─── System tools check ───────────────────────────────────────────────────────
+echo "📦 Checking system tools..."
 for cmd in ffmpeg icecast; do
-  if ! command -v $cmd &> /dev/null; then
-    echo "   ⚠️  $cmd not found! Auto-installing via Homebrew..."
-    brew install $cmd
-  fi
+    if ! command -v "$cmd" > /dev/null 2>&1; then
+        echo "   ⚠️  $cmd not found — trying Homebrew..."
+        brew install "$cmd" 2>/dev/null || echo "   ⚠️  Could not auto-install $cmd. Please install manually."
+    fi
 done
-
-# Python TTS Dependencies
-if ! python -c "import edge_tts" 2>/dev/null; then
-  echo "   ⚠️  edge-tts python package missing! Auto-installing..."
-  python -m pip install edge-tts
-fi
-if ! python -c "import kokoro_onnx" 2>/dev/null; then
-  echo "   ⚠️  kokoro-onnx python package missing! Auto-installing..."
-  python -m pip install kokoro-onnx soundfile requests
-fi
-if ! python -c "import pydub" 2>/dev/null; then
-  echo "   ⚠️  pydub python package missing! Auto-installing..."
-  python -m pip install pydub
-fi
-
-echo "✅ All dependencies verified."
+echo "✅ System check done."
 echo ""
 
-# Start Icecast
+# ─── Start Icecast ────────────────────────────────────────────────────────────
 echo "📻 Starting Icecast on :8000..."
-icecast -c icecast.xml -b &
+icecast -c icecast.xml -b 2>/dev/null &
 sleep 2
 
-# Liquidsoap is installed via opam — use explicit path
+# ─── Start Liquidsoap ─────────────────────────────────────────────────────────
 LIQUIDSOAP="${HOME}/.opam/default/bin/liquidsoap"
 if [ ! -f "$LIQUIDSOAP" ]; then
-  LIQUIDSOAP=$(which liquidsoap 2>/dev/null || echo "")
+    LIQUIDSOAP="$(which liquidsoap 2>/dev/null || echo "")"
 fi
 if [ -z "$LIQUIDSOAP" ]; then
-  echo "   ⚠️  liquidsoap not found — skipping. Install with: opam install liquidsoap"
+    echo "   ⚠️  liquidsoap not found — skipping. Install with: opam install liquidsoap"
 else
-  echo "🎵 Starting Liquidsoap..."
-  nohup "$LIQUIDSOAP" radio.liq > /tmp/liquidsoap.log 2>&1 &
-  sleep 3
+    echo "🎵 Starting Liquidsoap..."
+    nohup "$LIQUIDSOAP" radio.liq > /tmp/liquidsoap.log 2>&1 &
+    sleep 3
 fi
 
-# Start XTTS TTS Server
+# ─── Start Coqui XTTS Server on :8001 ────────────────────────────────────────
+# This is the ONLY TTS engine. It does zero-shot voice cloning for all shows/ads.
 if [ -d "$BACKEND_DIR/tts_server" ]; then
-  echo "🗣️  Starting Coqui XTTS on :8001..."
-  cd "$BACKEND_DIR/tts_server"
-  
-  if [ ! -d "xtts_env" ]; then
-      echo "🌀 XTTS environment missing. Auto-installing massive Coqui TTS dependencies locally..."
-      "$PYTHON_CMD" -m venv xtts_env
-      . xtts_env/bin/activate
-      pip install -U pip
-      # Install specific MacOS Torch versions to unlock Apple Silicon acceleration
-      pip install torch torchaudio
-      pip install TTS fastapi uvicorn requests pydub
-  else
-      if [ -f "xtts_env/bin/activate" ]; then . xtts_env/bin/activate; fi
-  fi
-  
-  nohup python -m uvicorn main:app --host 0.0.0.0 --port 8001 > /tmp/tts_server.log 2>&1 &
-  cd "$BACKEND_DIR"
-  if [ -f "venv/bin/activate" ]; then
-      . venv/bin/activate
-  elif [ -f ".venv/bin/activate" ]; then
-      . .venv/bin/activate
-  fi
-fi
+    echo "🗣️  Starting Coqui XTTS on :8001..."
+    cd "$BACKEND_DIR/tts_server"
 
-# ============================================================
-# FISH AUDIO (Fish Speech) AUTO-DEPLOY & SERVER
-# ============================================================
-echo "🐟 Checking Fish Audio Engine..."
-if [ ! -d "$BACKEND_DIR/fish-speech" ]; then
-    echo "   📥 Fish Speech missing! Auto-cloning massive payload from GitHub... (This may take a while)"
-    cd "$BACKEND_DIR"
-    git clone https://github.com/fishaudio/fish-speech.git
-fi
+    if [ ! -d "xtts_env" ]; then
+        echo "   🌀 First run: building XTTS environment (this takes a few minutes)..."
+        "$PYTHON_CMD" -m venv xtts_env
+        . xtts_env/bin/activate
+        pip install -q -U pip
 
-if [ -d "$BACKEND_DIR/fish-speech" ]; then
-    echo "   🐟 Starting Fish Speech on :8082..."
-    cd "$BACKEND_DIR/fish-speech"
-    
-    if [ ! -d "fish_env" ]; then
-        echo "   🌀 Fish environment missing. Building Apple Silicon PyTorch container..."
-        "$PYTHON_CMD" -m venv fish_env
-        . fish_env/bin/activate
-        pip install -U pip
-        # Essential MacOS torch setup for Fish Audio MPS acceleration
-        pip install torch torchaudio torchvision
-        # Build Fish Audio
-        pip install -e .
+        # Install PyTorch for Apple Silicon FIRST before TTS to avoid numpy conflict
+        pip install -q torch torchaudio
+
+        # Install Coqui TTS — allow it to override numpy to its needed version (1.22.x)
+        pip install -q TTS
+
+        # Now install the server layer on top
+        pip install -q fastapi uvicorn requests pydub
     else
-        if [ -f "fish_env/bin/activate" ]; then . fish_env/bin/activate; fi
+        if [ -f "xtts_env/bin/activate" ]; then
+            . xtts_env/bin/activate
+        fi
     fi
-    
-    echo "   🚀 Launching Fish API Server in background..."
-    # Fish default API uses tools.api_server
-    nohup python -m tools.api_server --listen 0.0.0.0:8082 > /tmp/fish_server.log 2>&1 &
-    
+
+    nohup python -m uvicorn main:app --host 0.0.0.0 --port 8001 > /tmp/tts_server.log 2>&1 &
+    echo "   ⏳ XTTS loading model (takes ~30-60s on first run)..."
+
+    # Re-activate the main venv for the FastAPI server
     cd "$BACKEND_DIR"
-    if [ -f "venv/bin/activate" ]; then
-        . venv/bin/activate
-    elif [ -f ".venv/bin/activate" ]; then
+    if [ -f ".venv/bin/activate" ]; then
         . .venv/bin/activate
+    elif [ -f "venv/bin/activate" ]; then
+        . venv/bin/activate
     fi
 fi
 
-# Start FastAPI
+# ─── Start FastAPI Backend on :8080 ───────────────────────────────────────────
 echo "⚙️  Starting FastAPI on :8080..."
 nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 > /tmp/fastapi.log 2>&1 &
-sleep 3
+sleep 5
 
-# Verify backend is up
+# Health check
 echo -n "   Backend health check... "
-if curl -sf --max-time 3 'http://localhost:8080/api/chat/messages?since=0' > /dev/null 2>&1; then
-  echo "✅ OK"
+if curl -sf --max-time 5 'http://localhost:8080/api/chat/messages?since=0' > /dev/null 2>&1; then
+    echo "✅ OK"
 else
-  echo "⚠️  Not responding yet (may still be starting)"
+    echo "⚠️  Not responding yet (check: tail -f /tmp/fastapi.log)"
 fi
 
-# Start Cloudflare Tunnels
+# ─── Cloudflare Tunnels ───────────────────────────────────────────────────────
 echo ""
 echo "🌐 Starting Cloudflare Tunnels..."
 
 if [ -f ~/.cloudflared/config.yml ]; then
-  # Named tunnel — permanent URL, never changes
-  TUNNEL_NAME=$(grep "^tunnel:" ~/.cloudflared/config.yml | awk '{print $2}')
-  echo "   Using named tunnel: $TUNNEL_NAME"
-  cloudflared tunnel run "$TUNNEL_NAME" > /tmp/cf_api.log 2>&1 &
+    TUNNEL_NAME="$(grep '^tunnel:' ~/.cloudflared/config.yml | awk '{print $2}')"
+    echo "   Using named tunnel: $TUNNEL_NAME"
+    cloudflared tunnel run "$TUNNEL_NAME" > /tmp/cf_api.log 2>&1 &
 else
-  # Temp tunnel — URL changes on restart, must update Vercel after each run
-  echo "   Starting temp API tunnel (port 8080)..."
-  cloudflared tunnel --url http://localhost:8080 > /tmp/cf_api.log 2>&1 &
+    echo "   Starting temp API tunnel (port 8080)..."
+    cloudflared tunnel --url http://localhost:8080 > /tmp/cf_api.log 2>&1 &
 fi
 
-# Always start a separate stream tunnel for Icecast (HTTPS required for mobile Safari)
-echo "   Starting stream tunnel (port 8000, needed for mobile)..."
+echo "   Starting stream tunnel (port 8000)..."
 cloudflared tunnel --url http://localhost:8000 > /tmp/cf_stream.log 2>&1 &
 
 echo -n "   Waiting for tunnel URLs"
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  sleep 2
-  echo -n "."
-  API_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com\|https://[a-z0-9-]*\.cfargotunnel\.com' /tmp/cf_api.log 2>/dev/null | head -1)
-  STREAM_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com\|https://[a-z0-9-]*\.cfargotunnel\.com' /tmp/cf_stream.log 2>/dev/null | head -1)
-  if [ -n "$API_URL" ] && [ -n "$STREAM_URL" ]; then break; fi
+i=1
+while [ "$i" -le 15 ]; do
+    sleep 2
+    printf "."
+    API_URL="$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com\|https://[a-z0-9-]*\.cfargotunnel\.com' /tmp/cf_api.log 2>/dev/null | head -1)"
+    STREAM_URL="$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com\|https://[a-z0-9-]*\.cfargotunnel\.com' /tmp/cf_stream.log 2>/dev/null | head -1)"
+    if [ -n "$API_URL" ] && [ -n "$STREAM_URL" ]; then break; fi
+    i="$((i + 1))"
 done
 echo ""
 
@@ -202,16 +159,16 @@ echo "✅ Tingo AI Radio is LIVE!"
 echo ""
 echo "📋 COPY THESE TO VERCEL → Settings → Environment Variables → Redeploy:"
 echo ""
-echo "   NEXT_PUBLIC_API_URL    = ${API_URL:-"(still starting, check /tmp/cf_api.log)"}"
-echo "   NEXT_PUBLIC_STREAM_URL = ${STREAM_URL:-"(still starting, check /tmp/cf_stream.log)"}"
+echo "   NEXT_PUBLIC_API_URL    = ${API_URL:-'(check /tmp/cf_api.log)'}"
+echo "   NEXT_PUBLIC_STREAM_URL = ${STREAM_URL:-'(check /tmp/cf_stream.log)'}"
 echo ""
 echo "⚠️  These URLs CHANGE on every restart — update Vercel each time."
 echo "    To fix permanently: cloudflared tunnel login && cloudflared tunnel create tingo"
 echo ""
 echo "📋 Logs:"
-echo "   tail -f /tmp/fastapi.log"
-echo "   tail -f /tmp/cf_api.log"
-echo "   tail -f /tmp/cf_stream.log"
+echo "   tail -f /tmp/fastapi.log    ← main API"
+echo "   tail -f /tmp/tts_server.log ← Coqui XTTS"
+echo "   tail -f /tmp/cf_api.log     ← cloudflare"
 echo ""
-echo "🛑 To stop all services:"
+echo "🛑 To stop:"
 echo "   pkill -f 'uvicorn|liquidsoap|icecast|cloudflared'"
