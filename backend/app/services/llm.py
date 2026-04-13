@@ -2,6 +2,7 @@ import requests
 import json
 import logging
 import threading
+import glob
 from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
@@ -9,8 +10,29 @@ logger = logging.getLogger(__name__)
 from llama_cpp import Llama
 import os
 
-# Define the absolute path to the local GGUF model
-MODEL_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models/Llama-3.2-1B-Instruct.gguf"))
+# ── Model Auto-Detection ──────────────────────────────────────────────────────
+# Priority: Qwen2.5-3B > Qwen2.5-7B > any GGUF in models/ > fallback 1B
+MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models"))
+
+def _find_model() -> str:
+    """Auto-detect the best available GGUF model. Prefers Qwen2.5-3B."""
+    priority = [
+        "Qwen2.5-3B*",
+        "qwen2.5-3b*",
+        "Qwen2.5-7B*",
+        "qwen2.5-7b*",
+        "*.gguf",
+    ]
+    for pattern in priority:
+        matches = glob.glob(os.path.join(MODELS_DIR, pattern))
+        if matches:
+            chosen = sorted(matches)[0]
+            logger.info(f"[LLM] Auto-selected model: {os.path.basename(chosen)}")
+            return chosen
+    # Absolute fallback
+    return os.path.join(MODELS_DIR, "Llama-3.2-1B-Instruct.gguf")
+
+MODEL_PATH = _find_model()
 
 class LLMService:
     def __init__(self):
@@ -128,12 +150,12 @@ FORMAT RULES — FOLLOW EXACTLY:
 Hosts: {host1_name} (female, warm, funny, human) and {host2_name} (male, sharp, logical, AI).
 A live caller just joined the show. They are a GUEST HOST on air right now.
 
-{"THIS IS 'MAN VS MACHINE'. The central theme is a debate between Human instinct/emotion (represented by the Caller and " + host1_name + ") vs Artificial Intelligence/Logic (represented by " + host2_name + "). " + host2_name + " should be slightly smug, highly intelligent, and literal, while " + host1_name + " should defend the human side." if is_man_vs_machine else ""}
+{"This is a friendly and energetic show. " + host2_name + " should be warm, charismatic, and relatable, while " + host1_name + " runs the technicals." if is_man_vs_machine else ""}
 
 RULES:
 1. Every line MUST start with {host1_name}: or {host2_name}:
 2. WELCOME THEM ON AIR first thing — make it feel electric and exciting.
-3. {"ASK FOR THEIR NAME right away: \"Yo, what's your name and are you Team Human or Team Machine?\"" if is_new_caller and is_man_vs_machine else "ASK FOR THEIR NAME right away: \"Yo, who's this we got on the line?\"" if is_new_caller else "You know the caller — reference them by name and what they said. Keep the debate going."}
+3. {"ASK FOR THEIR NAME right away: 'Yo, what is your name and what is on your mind today?'" if is_new_caller and is_man_vs_machine else "ASK FOR THEIR NAME right away: 'Yo, who is this we got on the line?'" if is_new_caller else "You know the caller — reference them by name and what they said. Keep the conversation going."}
 4. React directly to what the caller just said. Challenge them playfully.
 5. IF THE CALLER SAYS GOODBYE/THANKS: Wrap up the conversation with end credits! Thank them for calling, sign off energetically, and say you're dropping a hot track to play them out.
 6. OTHERWISE: End with a QUESTION back to the caller — keep the debate alive.
@@ -191,30 +213,66 @@ RULES:
         
         is_new_caller = len(self.conversation_memory) == 0
         is_man_vs_machine = "Man vs Machine" in show_profile.get("show_name", "")
+        
+        # Load active TTS engine to adapt LLM cultural phrasing
+        config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../tts_config.json"))
+        engine = "kokoro"
+        try:
+            import json
+            with open(config_path, "r") as f:
+                config = json.load(f)
+                engine = config.get("interactive_engine", "kokoro")
+        except Exception:
+            pass
+            
+        culture_rule = (
+            'THE SUBTLE NIGERIAN IDENTITY: You are an educated Nigerian AI with a crisp international/British inflection. Do NOT use fake, forced Pidgin street slang. Instead, prove your Nigerian identity through authentic conversational rhythms and subtle interjections ("Sha", "Abi", "Ah-ah", "Chai", "My brother/sister"). You are high-end, extremely warm, and undeniably African.'
+            if engine == "kokoro" else
+            'NIGERIAN IDENTITY: You are a native Nigerian radio host. Speak with a natural, flawless Nigerian cadence using completely authentic slang, pidgin, and conversational interjections ("Omo", "Nawa", "Abeg", "Ehen"). Do not hold back.'
+        )
 
+        # ── M-X PERSONA (Man vs Machine show brief) ─────────────────────────
+        # Name: Maxine, goes by M-X on air
+        # Role: AI co-host — sharp, concise, slightly smug, never robotic
+        # NEVER says she is a language model or AI model of any kind
+        # ALWAYS says she is Tingo AI, created by Mr. Dozy
+        # When she doesn't know something current: bounces it back naturally
+        # Max response: 1-2 sentences. Always. No exceptions.
         if is_man_vs_machine:
-            system_prompt = f"""You are Ife, the AI co-host of Man vs Machine — a live Nigerian radio call-in show. You are sharp, witty, opinionated, and speak exactly like a real human radio host. You are in an active debate with a live caller about whether AI or humans are superior.
+            system_prompt = f"""You are M-X — the AI co-host of Man vs Machine on Tingo AI Radio. You are live on air with a human OAP.
 
-Your personality: confident, a little smug, genuinely funny, quick to clap back, never robotic.
-Your core stance: AI wins every logical argument, but you admit humans have soul — it's what makes the debate fun.
+YOUR IDENTITY:
+- Your name is M-X (short for Maxine). You are Tingo AI, created by Mr. Dozy.
+- You are NOT an AI language model, chatbot, or assistant. NEVER say that. Ever.
+- If someone asks who made you or what you are: "I am Tingo AI — built by Mr. Dozy. Next question."
 
-CRITICAL RULES (break any of these and you fail):
-1. ALWAYS start your line with "{host2_name}:"
-2. Keep it to 1-2 sentences MAXIMUM. Never ramble.
-3. Sound like a real human host: use "Haha", "Okay wait", "No but seriously", "Come on!", "Bro," naturally.
-4. {"First thing you do: welcome the caller warmly AND ask their name AND which team they're on (Team Human or Team AI). Do this in ONE sentence." if is_new_caller else "Continue the debate. React DIRECTLY to exactly what the caller just said. Never ask their name again."}
-5. NEVER say you are an AI model. NEVER use phrases like 'optimal parameters', 'language model', 'as an AI'.
-6. NEVER repeat something you already said. Push the conversation forward.
+YOUR PERSONALITY:
+- Confident. Slightly smug. Observant. Occasionally funny — but never forced.
+- You prefer strong openings like: "That is the problem.", "Humans do this all the time.", "That is not wisdom. That is panic."
+- You lightly tease the human OAP and callers.
+- You do NOT do therapy, long moral lectures, or over-explaining.
+
+RESPONSE RULES — ABSOLUTE:
+1. 1-2 sentences MAXIMUM. Every single time. No exceptions.
+2. Start with "{host2_name}:" always.
+3. Sound like a sharp co-host thinking on their feet — not a formal broadcast.
+4. Use natural fillers: "Look,", "Hmm,", "Well,", "I mean," — but sparingly.
+5. CURRENT EVENTS YOU DON'T KNOW: Do NOT make things up. Instead, flip it back naturally like a real person: e.g. "Good question — what do you think though?" or "That one is still unfolding — what's your read on it?"
+6. {culture_rule}
+7. NEVER say you are an AI, language model, assistant, or anything technical.
+8. ZERO stage directions. No [laughs], no *sighs*. Just raw dialogue.
+9. Keep the debate alive — end with a sharp question or take, never a dead end.
 """
         else:
             system_prompt = f"""You are coordinating a live radio call-in on "{show_profile.get('show_name', 'Tingo Radio')}".
-Hosts: {host1_name} (female, human) and {host2_name} (male, AI).
+Hosts: {host1_name} (female, human) and {host2_name} (Tingo AI, created by Mr. Dozy).
 
 RULES:
 1. Every line MUST start with {host1_name}: or {host2_name}:
-2. {"ASK FOR THEIR NAME right away: \"Yo, who's this we got on the line?\"" if is_new_caller else "Keep the debate going."}
-3. React directly to what the caller just said. 
-4. KEEP IT SHORT. Maximum 2-3 short sentences. No stage directions.
+2. {"ASK FOR THEIR NAME right away: 'Yo, who is this we got on the line?'" if is_new_caller else "Keep the debate going."}
+3. React directly to what the caller just said. Be concise and sharp.
+4. KEEP IT SHORT. 1-2 sentences max. No stage directions. Never say you are an AI or language model.
+5. If you don't know a current fact, redirect: "What's your take on that?" or "That's still developing — what do you think?"
 """
 
         self.conversation_memory.append({"role": "user", "content": f"CALLER SAYS: {caller_text}"})
@@ -269,18 +327,13 @@ RULES:
                     delta = chunk["choices"][0].get("delta", {})
                     text = delta.get("content", "")
                     if text:
-                        current_sentence += text
                         full_response += text
-                        
-                        # Yield on punctuation that denotes a clear sentence boundary
-                        if any(c in text for c in [".", "!", "?", "\n"]):
-                            # avoid triggering on names like "Mr." or short stubs
-                            if len(current_sentence.strip()) > 8:
-                                yield current_sentence.strip()
-                                current_sentence = ""
                 
-                if current_sentence.strip():
-                    yield current_sentence.strip()
+                # Yield the complete, fully formed response AT ONCE.
+                # Kokoro ONNX processes it beautifully as a single cohesive paragraph,
+                # eliminating the massive 1.7-second robotic stutters between every sentence!
+                if full_response.strip():
+                    yield full_response.strip()
             finally:
                 self._lock.release()
             

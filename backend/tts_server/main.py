@@ -1,4 +1,8 @@
 import os
+# Force PyTorch to use Apple Metal (MPS) fallback for unsupported ops, preventing silent CPU downgrades
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+os.environ["OMP_NUM_THREADS"] = "8" # Optimize any graphs that still spill over to the CPU
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel

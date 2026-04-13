@@ -10,6 +10,7 @@ import asyncio
 import logging
 import subprocess
 import random
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -93,54 +94,87 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
         text = re.sub(p, r, text)
 
     if is_interactive:
-        # ================================================================
-        # LIVE CALL PATH — edge-tts (~300ms latency)
-        # Nigerian accents + prosody variation + radio ffmpeg chain
-        # ================================================================
-        import random, asyncio, edge_tts
-
-        EDGE_VOICE_MAP = {
-            "ife_target.wav":  "en-NG-EzinneNeural",
-            "Dozy_target.wav": "en-NG-AbeoNeural",
-        }
-        edge_voice = EDGE_VOICE_MAP.get(voice, "en-NG-EzinneNeural")
-
-        # Randomize rate/pitch slightly each line — sounds human, not robotic clone
-        rate_pct = random.choice(["-3%", "+0%", "+2%", "+5%"])
-        pitch_hz = random.choice(["-5Hz", "+0Hz", "+3Hz", "+7Hz"])
-
-        mp3_tmp = output_path.replace(".wav", "_edge.mp3")
-        raw_wav = output_path.replace(".wav", "_raw.wav")
+        import json
+        config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../tts_config.json"))
+        engine = "kokoro"
+        config = {}
         try:
-            # edge-tts needs "A.I." to say it naturally; XTTS handles "AI" fine on its own
-            edge_text = re.sub(r'\bAI\b', 'A.I.', text)
-            edge_text = re.sub(r'\bAi\b', 'A.I.', edge_text)
-
-            async def _synth():
-                comm = edge_tts.Communicate(edge_text, edge_voice, rate=rate_pct, pitch=pitch_hz)
-                await comm.save(mp3_tmp)
-
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(_synth())
-            finally:
-                loop.close()
-
-            # Decode MP3 → raw 24kHz WAV with instant EQ filtering
-            subprocess.run([
-                "ffmpeg", "-y", "-i", mp3_tmp,
-                "-filter_complex", "equalizer=f=3000:t=o:w=1:g=1.5,highpass=f=100,volume=1.2",
-                "-ar", "24000", "-ac", "1", output_path
-            ], timeout=6, capture_output=True, check=True)
-
-            if os.path.exists(mp3_tmp):
-                try: os.remove(mp3_tmp)
-                except: pass
-
-            logger.info(f"edge-tts OK → {edge_voice} rate={rate_pct} pitch={pitch_hz}")
-            return
+            with open(config_path, "r") as f:
+                config = json.load(f)
+                engine = config.get("interactive_engine", "kokoro")
         except Exception as e:
-            logger.error(f"edge-tts failed ({e}) — falling back to XTTS")
+            logger.error(f"Failed to load tts_config.json, falling back to Kokoro: {e}")
+
+        # ENGINE 1: KOKORO ONNX
+        if engine == "kokoro":
+            try:
+                from kokoro_onnx import Kokoro
+                import soundfile as sf
+                
+                models_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/models"))
+                os.makedirs(models_dir, exist_ok=True)
+                
+                k_model = os.path.join(models_dir, "kokoro-v1.0.onnx")
+                k_voices = os.path.join(models_dir, "voices-v1.0.bin")
+                
+                if not os.path.exists(k_model):
+                    r = requests.get("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx", stream=True)
+                    with open(k_model, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192): f.write(chunk)
+                if not os.path.exists(k_voices):
+                    r = requests.get("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin", stream=True)
+                    with open(k_voices, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192): f.write(chunk)
+                    
+                ko = Kokoro(k_model, k_voices)
+                
+                k_config = config.get("kokoro", {})
+                k_voice = k_config.get("female_voice", "bf_emma") if "ife" in voice.lower() else k_config.get("male_voice", "bm_george")
+                
+                audio, sample_rate = ko.create(text, voice=k_voice, speed=1.0, lang="en-gb")
+                sf.write(output_path, audio, sample_rate)
+                logger.info(f"Kokoro-ONNX synthesized instantly for {k_voice}")
+                return
+            except Exception as e:
+                logger.error(f"Kokoro ONNX failed: {e}. Falling back to slow XTTS.")
+
+        # ENGINE 2: EDGE TTS (Microsoft Neural)
+        elif engine == "edge_tts":
+            try:
+                e_config = config.get("edge_tts", {})
+                e_voice = e_config.get("female_voice", "en-NG-EzinneNeural") if "ife" in voice.lower() else e_config.get("male_voice", "en-NG-AbeoNeural")
+                subprocess.run([
+                    "edge-tts", "--text", text, "--voice", e_voice, "--write-media", output_path
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                logger.info(f"Edge-TTS synthesized instantly for {e_voice}")
+                return
+            except Exception as e:
+                logger.error(f"Edge-TTS failed: {e}. Falling back to slow XTTS.")
+
+        # ENGINE 3: FISH AUDIO
+        elif engine == "fish":
+            try:
+                f_config = config.get("fish", {})
+                f_voice = f_config.get("female_voice", "ife_fish") if "ife" in voice.lower() else f_config.get("male_voice", "Dozy_fish")
+                f_url = f_config.get("server_url", "http://localhost:8082/v1/tts")
+                
+                payload = {
+                    "text": text,
+                    "reference_id": f_voice,
+                    "format": "wav"
+                }
+                rsp = requests.post(f_url, json=payload, timeout=10)
+                rsp.raise_for_status()
+                with open(output_path, 'wb') as f:
+                    f.write(rsp.content)
+                logger.info(f"Fish API synthesized instantly for {f_voice}")
+                return
+            except Exception as e:
+                logger.error(f"Fish API failed: {e}. Falling back to slow XTTS.")
+
+        # ENGINE 4: XTTS
+        elif engine == "xtts":
+            pass # Skip straight past this block to the bottom where XTTS executes natively!
 
     final_text = text
     url = "http://localhost:8001/synthesize"

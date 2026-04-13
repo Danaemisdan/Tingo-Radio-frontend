@@ -394,6 +394,8 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
               <span className="text-xs font-bold tracking-widest" style={{ color: "#fb923c", letterSpacing: "0.15em" }}>frequency</span>
             </div>
             {/* Call Button */}
+            {/* --- CALL IN TOGGLE (Hidden for now!) --- */}
+            {/* 
             <button
               onClick={handleCallToggle}
               title={inCall ? "End call" : showIsLive ? `Call into ${showName || "the show"} live!` : "Call In is only active during a show"}
@@ -409,6 +411,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
               {inCall ? <PhoneOff className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
               <span>{inCall ? "End" : showIsLive ? "Call In" : "Off Air"}</span>
             </button>
+            */}
           </div>
 
           {/* ── Call Banner ── */}

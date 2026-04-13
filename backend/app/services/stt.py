@@ -7,10 +7,9 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 class STTService:
-    def __init__(self, model_size="base.en", device="cpu", compute_type="float32"):
+    def __init__(self, model_size="tiny.en", device="cpu", compute_type="float32"):
         """
-        base.en is significantly more accurate than tiny.en with only ~2x slower inference.
-        Still fully real-time on Apple Silicon. tiny.en was causing most of the bad transcriptions.
+        tiny.en for maximum speed to guarantee sub-second latency.
         """
         from faster_whisper import WhisperModel
         logger.info(f"Loading STT Model: {model_size} on {device} ({compute_type})")

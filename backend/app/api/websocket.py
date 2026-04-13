@@ -89,30 +89,29 @@ async def live_call_endpoint(websocket: WebSocket):
                     _AS.silent(duration=120000).export(silence_path, format="wav")
                 push_to_liquidsoap_sync(silence_path, queue_name="show_api")
 
-            # 2. Decode this standalone WebM chunk directly into raw PCM
-            import tempfile, subprocess
-            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
-                f.write(data)
-                tmp_webm = f.name
-            
-            tmp_pcm = tmp_webm.replace(".webm", ".pcm")
-            # Convert to s16le 16kHz mono without appending WebM headers
-            subprocess.run([
-                "ffmpeg", "-y", "-i", tmp_webm, "-f", "s16le", "-ar", "16000", "-ac", "1", tmp_pcm
-            ], timeout=3, capture_output=True)
-            
-            if os.path.exists(tmp_pcm):
-                with open(tmp_pcm, "rb") as f:
-                    session_pcm_bytes += f.read()
-                os.remove(tmp_pcm)
-            os.remove(tmp_webm)
+            # 2. Decode this standalone WebM chunk directly into raw PCM asynchronously using pipes
+            def _decode_webm(in_data):
+                import subprocess
+                try:
+                    process = subprocess.Popen([
+                        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "webm", "-i", "pipe:0",
+                        "-f", "s16le", "-ar", "16000", "-ac", "1", "pipe:1"
+                    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    out, err = process.communicate(input=in_data, timeout=3)
+                    return out
+                except Exception as e:
+                    logger.error(f"FFmpeg pipe decode error: {e}")
+                    return b""
 
-            # Cap PCM memory at 10 seconds (16000 hz * 2 bytes * 10s = 320,000 bytes)
-            if len(session_pcm_bytes) > 320000:
-                session_pcm_bytes = session_pcm_bytes[-320000:]
+            pcm_chunk = await asyncio.to_thread(_decode_webm, data)
+            session_pcm_bytes += pcm_chunk
+
+            # Cap PCM memory at 45 seconds (16000 hz * 2 bytes * 45s = 1,440,000 bytes)
+            if len(session_pcm_bytes) > 1440000:
+                session_pcm_bytes = session_pcm_bytes[-1440000:]
                 
-            # 3. Transcribe the accumulated clean PCM directly
-            transcript = stt_service.transcribe_pcm(session_pcm_bytes)
+            # 3. Transcribe the accumulated clean PCM directly (in a thread to prevent blocking loop)
+            transcript = await asyncio.to_thread(stt_service.transcribe_pcm, session_pcm_bytes)
             
             pending_text = None
 
@@ -121,8 +120,22 @@ async def live_call_endpoint(websocket: WebSocket):
                 # Same phrase? They might have stopped adding new words.
                 if transcript == current_transcript:
                     duplicate_count += 1
-                    # If we got the exact same transcript 2 chunks in a row, they stopped talking
-                    if duplicate_count >= 2:
+                    # If we got the exact same transcript consecutively, they stopped adding new words
+                    if duplicate_count >= 1:
+                        # Flush Caller Audio to the Global Stream BEFORE the AI responds!
+                        if session_pcm_bytes:
+                            import wave
+                            caller_wav = os.path.abspath(os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:8]}.wav"))
+                            try:
+                                with wave.open(caller_wav, 'wb') as wf:
+                                    wf.setnchannels(1)
+                                    wf.setsampwidth(2)
+                                    wf.setframerate(16000)
+                                    wf.writeframes(session_pcm_bytes)
+                                push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
+                            except Exception as e:
+                                logger.error(f"Failed to push caller audio: {e}")
+                                
                         pending_text = current_transcript
                         current_transcript = ""
                         duplicate_count = 0
@@ -137,6 +150,19 @@ async def live_call_endpoint(websocket: WebSocket):
                 # VAD detected pure silence in the PCM
                 if current_transcript:
                     # They were speaking, now stopped. Flush!
+                    if session_pcm_bytes:
+                        import wave
+                        caller_wav = os.path.abspath(os.path.join(SHOWS_DIR, f"caller_{uuid.uuid4().hex[:8]}.wav"))
+                        try:
+                            with wave.open(caller_wav, 'wb') as wf:
+                                wf.setnchannels(1)
+                                wf.setsampwidth(2)
+                                wf.setframerate(16000)
+                                wf.writeframes(session_pcm_bytes)
+                            push_to_liquidsoap_sync(caller_wav, queue_name="interactive_api")
+                        except Exception as e:
+                            logger.error(f"Failed to push caller audio: {e}")
+                            
                     pending_text = current_transcript
                     current_transcript = ""
                     duplicate_count = 0
@@ -146,9 +172,9 @@ async def live_call_endpoint(websocket: WebSocket):
                     if len(session_pcm_bytes) > 64000:  # >2s of silence
                         session_pcm_bytes = b""
 
-            # NOTE: Caller audio is intentionally NOT pushed to Liquidsoap.
-            # Previously every 2s chunk was queued, creating a 30-50s backlog
-            # of caller audio ahead of the AI response in the playback queue.
+            # Caller audio is now successfully pushed to Liquidsoap dynamically above 
+            # whenever the user stops speaking as a single, consolidated WAV block 
+            # (which fixes the previous 50s stutter backlog issue of pushing 1s micro-chunks).
 
             if pending_text:
                 logger.info(f"[DISPATCH TO LLM]: '{pending_text}'")
@@ -171,10 +197,16 @@ async def live_call_endpoint(websocket: WebSocket):
                                 break
                             if not sentence.strip(): continue
                             import re
+                            speaker_match = re.match(r'^([a-zA-Z0-9_ -]+):\s*', sentence)
+                            ai_voice = "ife_target.wav" # Default female voice
+                            if speaker_match:
+                                sl = speaker_match.group(1).lower()
+                                if "dozy" in sl or "tingo" in sl or "max" in sl or "yaw" in sl:
+                                    ai_voice = "Dozy_target.wav"
+                            
                             clean = re.sub(r'^[a-zA-Z0-9_ -]+:\s*', '', sentence).strip()
                             if not clean: continue
 
-                            ai_voice = "ife_target.wav"
                             chunk_wav = os.path.join(SHOWS_DIR, f"fragment_{uuid.uuid4().hex[:8]}.wav")
                             try:
                                 t0 = time.time()

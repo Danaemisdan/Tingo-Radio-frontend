@@ -1,0 +1,21 @@
+{
+    "interactive_engine": "edge_tts",
+    "kokoro": {
+        "female_voice": "bf_emma",
+        "male_voice": "bm_george"
+    },
+    "xtts": {
+        "female_voice": "ife_target.wav",
+        "male_voice": "Dozy_target.wav",
+        "server_url": "http://localhost:8001/synthesize"
+    },
+    "edge_tts": {
+        "female_voice": "en-NG-EzinneNeural",
+        "male_voice": "en-NG-AbeoNeural"
+    },
+    "fish": {
+        "female_voice": "ife_fish",
+        "male_voice": "Dozy_fish",
+        "server_url": "http://localhost:8082/v1/tts"
+    }
+}

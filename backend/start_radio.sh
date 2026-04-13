@@ -19,7 +19,48 @@ pkill -9 -f "cloudflared" 2>/dev/null || true
 sleep 2
 
 cd "$BACKEND_DIR"
+
+if [ ! -d "venv" ] && [ ! -d ".venv" ]; then
+    echo "🌀 Virtual environment missing. Creating fresh .venv for Mac Studio..."
+    python3 -m venv .venv
+fi
 source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+
+# Always ensure requirements.txt is met on cold start
+if [ -f "requirements.txt" ]; then
+    echo "📦 Satisfying requirements.txt..."
+    python -m pip install -r requirements.txt
+fi
+
+# ============================================================
+# AUTO-DEPENDENCY CHECKER (For fresh Mac Studio deployments)
+# ============================================================
+echo "📦 Checking system and Python dependencies..."
+
+# System Dependencies via Homebrew
+for cmd in ffmpeg icecast; do
+  if ! command -v $cmd &> /dev/null; then
+    echo "   ⚠️  $cmd not found! Auto-installing via Homebrew..."
+    brew install $cmd
+  fi
+done
+
+# Python TTS Dependencies
+if ! python -c "import edge_tts" 2>/dev/null; then
+  echo "   ⚠️  edge-tts python package missing! Auto-installing..."
+  python -m pip install edge-tts
+fi
+if ! python -c "import kokoro_onnx" 2>/dev/null; then
+  echo "   ⚠️  kokoro-onnx python package missing! Auto-installing..."
+  python -m pip install kokoro-onnx soundfile requests
+fi
+if ! python -c "import pydub" 2>/dev/null; then
+  echo "   ⚠️  pydub python package missing! Auto-installing..."
+  python -m pip install pydub
+fi
+
+echo "✅ All dependencies verified."
+echo ""
 
 # Start Icecast
 echo "📻 Starting Icecast on :8000..."
@@ -43,10 +84,57 @@ fi
 if [ -d "$BACKEND_DIR/tts_server" ]; then
   echo "🗣️  Starting Coqui XTTS on :8001..."
   cd "$BACKEND_DIR/tts_server"
-  source xtts_env/bin/activate 2>/dev/null || true
+  
+  if [ ! -d "xtts_env" ]; then
+      echo "🌀 XTTS environment missing. Auto-installing massive Coqui TTS dependencies locally..."
+      python3 -m venv xtts_env
+      source xtts_env/bin/activate
+      pip install -U pip
+      # Install specific MacOS Torch versions to unlock Apple Silicon acceleration
+      pip install torch torchaudio
+      pip install TTS fastapi uvicorn requests pydub
+  else
+      source xtts_env/bin/activate 2>/dev/null || true
+  fi
+  
   nohup python -m uvicorn main:app --host 0.0.0.0 --port 8001 > /tmp/tts_server.log 2>&1 &
   cd "$BACKEND_DIR"
-  source venv/bin/activate 2>/dev/null || true
+  source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+fi
+
+# ============================================================
+# FISH AUDIO (Fish Speech) AUTO-DEPLOY & SERVER
+# ============================================================
+echo "🐟 Checking Fish Audio Engine..."
+if [ ! -d "$BACKEND_DIR/fish-speech" ]; then
+    echo "   📥 Fish Speech missing! Auto-cloning massive payload from GitHub... (This may take a while)"
+    cd "$BACKEND_DIR"
+    git clone https://github.com/fishaudio/fish-speech.git
+fi
+
+if [ -d "$BACKEND_DIR/fish-speech" ]; then
+    echo "   🐟 Starting Fish Speech on :8082..."
+    cd "$BACKEND_DIR/fish-speech"
+    
+    if [ ! -d "fish_env" ]; then
+        echo "   🌀 Fish environment missing. Building Apple Silicon PyTorch container..."
+        python3 -m venv fish_env
+        source fish_env/bin/activate
+        pip install -U pip
+        # Essential MacOS torch setup for Fish Audio MPS acceleration
+        pip install torch torchaudio torchvision
+        # Build Fish Audio
+        pip install -e .
+    else
+        source fish_env/bin/activate 2>/dev/null || true
+    fi
+    
+    echo "   🚀 Launching Fish API Server in background..."
+    # Fish default API uses tools.api_server
+    nohup python -m tools.api_server --listen 0.0.0.0:8082 > /tmp/fish_server.log 2>&1 &
+    
+    cd "$BACKEND_DIR"
+    source venv/bin/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
 fi
 
 # Start FastAPI
