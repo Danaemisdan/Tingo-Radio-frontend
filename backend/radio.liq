@@ -1,5 +1,7 @@
 # --- Liquidsoap Script: Tingo AI Radio ---
-set("log.file.path", "liquidsoap.log")
+# NOTE: Do NOT run this file directly. start_radio.sh generates /tmp/tingo_radio.liq
+# with the correct absolute paths substituted in before launching Liquidsoap.
+set("log.file.path", "/tmp/liquidsoap.log")
 set("log.level", 3)
 
 # Telnet server for FastAPI to push tracks via nc
@@ -17,33 +19,35 @@ interactive_api = request.queue(id="interactive_api")
 
 # --- Source 2: Music fallback playlist ---
 # Plays automatically from the music folder when nothing is in the AI queue
+# MUSIC_DIR is set by start_radio.sh to be portable across machines
 music_fallback = playlist(
   mode="random",
   reload_mode="watch",
-  "/Users/sanjeevn/Downloads/Tingo AI radio/media/music"
-)
-
-# Apply 3-second crossfade to the AI queue transitions (smooth song-to-show fade)
-crossed_show = crossfade(
-  fade_in=2.,
-  fade_out=3.,
-  show_api
-)
-
-# Apply crossfade to fallback music too
-crossed_music = crossfade(
-  fade_in=2.,
-  fade_out=2.,
-  music_fallback
+  "MUSIC_DIR_PLACEHOLDER"
 )
 
 # --- Priority Mixing ---
-# When interactive queue has content it plays instantly without crossfade
-# If interactive queue is empty, crossed_show takes over
-# If AI queue is empty, music_fallback takes over seamlessly.
+# Layer 1: Regular radio — show_api queue + music fallback.
+# track_sensitive=true means songs in music_fallback play to completion before
+# show_api content kicks in. This ensures songs are never cut mid-play.
+regular_radio = fallback(
+  track_sensitive=true,
+  [show_api, music_fallback, blank()]
+)
+
+# Apply crossfade AFTER the fallback so Liquidsoap can still detect track boundaries!
+crossed_radio = crossfade(
+  fade_in=1.,
+  fade_out=2.,
+  regular_radio
+)
+
+# Layer 2: Interactive caller override.
+# track_sensitive=false means a live caller IMMEDIATELY interrupts anything playing.
+# This is intentional — callers get instant air time.
 radio_stream = fallback(
   track_sensitive=false,
-  [interactive_api, crossed_show, crossed_music, blank()]
+  [interactive_api, crossed_radio, blank()]
 )
 
 # --- Icecast Output ---

@@ -44,7 +44,7 @@ VOICE_MAP = {
     "Caller": "ife_target.wav"
 }
 
-def parse_script(script_text: str):
+def parse_script(script_text: str) -> list[dict]:
     lines = script_text.strip().split('\n')
     parsed = []
     pattern = re.compile(r"^([^:]+):\s*(.*)$")
@@ -172,38 +172,34 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
             except Exception as e:
                 logger.error(f"Fish API failed: {e}. Falling back to slow XTTS.")
 
-        # ENGINE 4: XTTS (interactive only — falls through to XTTS block below)
+        # ENGINE 4: XTTS
         elif engine == "xtts":
-            pass  # falls through to the XTTS request block below
+            pass # Skip straight past this block to the bottom where XTTS executes natively!
 
-    # ---------------------------------------------------------------
-    # SHOW / AD PATH: Use edge-tts Nigerian neural voices.
-    # Nigerian voices sound excellent and require zero extra servers.
-    # ---------------------------------------------------------------
-    # Map voice filename → edge-tts voice name
-    if "ife" in voice.lower() or "ada" in voice.lower() or "fola" in voice.lower():
-        edge_voice = "en-NG-EzinneNeural"   # Female Nigerian
-    else:
-        edge_voice = "en-NG-AbeoNeural"     # Male Nigerian
+    final_text = text
+    url = "http://localhost:8001/synthesize"
+    payload = {
+        "text": final_text,
+        "speaker_wav": voice,
+        "language": "en"
+    }
 
-    try:
-        subprocess.run(
-            [
-                "python", "-m", "edge_tts",
-                "--text", text,
-                "--voice", edge_voice,
-                "--write-media", output_path
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=60
-        )
-        logger.info(f"[Show TTS] edge-tts synthesized line for {edge_voice}")
-        return
-    except Exception as e:
-        logger.error(f"[Show TTS] edge-tts failed: {e}")
-        raise RuntimeError(f"edge-tts failed for show synthesis: {e}")
+    import time
+    max_retries = 60
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, json=payload, timeout=300)
+            response.raise_for_status()
+            with open(output_path, 'wb') as f:
+                f.write(response.content)
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"XTTS not ready (attempt {attempt+1}/{max_retries}): {e}. Retrying in 5s...")
+                time.sleep(5)
+            else:
+                logger.error(f"XTTS failed after {max_retries} attempts for voice {voice}: {e}")
+                raise RuntimeError(f"XTTS Voice Cloning failed: {e}")
 
 def synthesize_show_sync(script_text: str, output_filename: str) -> str:
     """
@@ -240,34 +236,37 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
             temp_files.append(temp_file)
 
         final_path = os.path.join(SHOWS_DIR, output_filename)
+
+        # Concatenate all WAV line-segments with pydub
         from pydub import AudioSegment
         combined = AudioSegment.empty()
-        
         for tf in temp_files:
             if os.path.exists(tf):
-                segment = AudioSegment.from_wav(tf)
-                combined += segment
+                with open(tf, "rb") as f:
+                    segment = AudioSegment.from_wav(f)
+                    combined += segment
+        # Add 3s tail-silence so Liquidsoap crossfade never clips the last word
+        combined += AudioSegment.silent(duration=3000)
+        concat_audio_path = os.path.join(SHOWS_DIR, f"concat_{job_id}.wav")
+        with open(concat_audio_path, "wb") as f:
+            combined.export(f, format="wav")
 
-        # CRITICAL FIX: Add 3.5s of silence to the end so Liquidsoap's 3-second crossfade 
-        # doesn't chop off the last words of the host speaking!
-        combined += AudioSegment.silent(duration=3500)
-
-        concat_audio_path = os.path.join(SHOWS_DIR, f"concat_audio_{job_id}.wav")
-        combined.export(concat_audio_path, format="wav")
-
-        # Apply a 10% speedup to make the pacing much tighter and more energetic using ffmpeg
+        # Convert to 320k MP3 — NO speed manipulation (atempo was making voices robotic)
         try:
             subprocess.run([
-                "ffmpeg", "-y", "-i", concat_audio_path, 
-                "-filter:a", "atempo=1.08", 
-                "-c:a", "libmp3lame", "-b:a", "320k", 
+                "ffmpeg", "-y", "-i", concat_audio_path,
+                "-c:a", "libmp3lame", "-b:a", "320k",
                 final_path
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-            logger.info(f"Show synthesized successfully with 8% speedup: {final_path}")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to speedup audio with ffmpeg, falling back to raw concat: {e}")
+            logger.info(f"Show synthesized → {final_path}")
+        except subprocess.CalledProcessError:
             import shutil
             shutil.move(concat_audio_path, final_path)
+        # Clean up WAV concat intermediary
+        try:
+            os.remove(concat_audio_path)
+        except Exception:
+            pass
         return final_path
 
     except Exception as e:

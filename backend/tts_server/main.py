@@ -1,4 +1,8 @@
 import os
+# CRITICAL: Must be set BEFORE any TTS import. Coqui's TOS check runs at import time.
+# Shell env exports (COQUI_TOS_AGREED=1) are unreliable across TTS versions.
+# Setting it here in-process is the only guaranteed bypass.
+os.environ["COQUI_TOS_AGREED"] = "1"
 # Force PyTorch to use Apple Metal (MPS) fallback for unsupported ops, preventing silent CPU downgrades
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["OMP_NUM_THREADS"] = "8" # Optimize any graphs that still spill over to the CPU
@@ -22,19 +26,23 @@ import gc
 
 app = FastAPI(title="Local XTTS Server")
 
-# Initialize Coqui XTTS model
-device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
-print(f"Loading XTTS model on {device}...")
+# ── XTTS Device: always CPU.
+# The LLM uses MPS (Metal GPU). Putting XTTS on MPS too causes both models to
+# fight for the same Apple Silicon GPU memory pool → OOM crash after ~5 minutes.
+# CPU is fast enough for radio TTS synthesis and keeps memory split cleanly.
+device = "cpu"
+print(f"Loading XTTS model on {device} (MPS reserved for LLM)...")
 tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
-print("Model loaded successfully.")
+print("XTTS model loaded successfully.")
+
 
 class SynthesizeRequest(BaseModel):
     text: str
     speaker_wav: str  # filename of the wav file in the voices directory
     language: str = "en"
 
-if not os.path.exists("outputs"):
-    os.makedirs("outputs")
+OUTPUTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "outputs"))
+os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 VOICES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../media/voices"))
 os.makedirs(VOICES_DIR, exist_ok=True)
@@ -65,19 +73,18 @@ async def synthesize(request: SynthesizeRequest):
         if not os.path.exists(ref_path):
             raise HTTPException(status_code=404, detail=f"Voice reference {request.speaker_wav} not found in {VOICES_DIR}")
 
-        output_filename = f"outputs/output_{uuid.uuid4().hex[:8]}.wav"
+        output_filename = os.path.join(OUTPUTS_DIR, f"output_{uuid.uuid4().hex[:8]}.wav")
 
         # Ultra-Fast Latent Cached Inference
         if request.speaker_wav in speaker_latents:
             gpt_cond_latent, speaker_embedding = speaker_latents[request.speaker_wav]
-            
             out = tts.synthesizer.tts_model.inference(
                 request.text,
                 request.language,
                 gpt_cond_latent,
                 speaker_embedding,
                 temperature=0.75,
-                speed=0.92,
+                speed=0.88,
                 top_k=50,
                 top_p=0.85,
                 repetition_penalty=5.0
@@ -92,7 +99,7 @@ async def synthesize(request: SynthesizeRequest):
                 language=request.language,
                 file_path=output_filename,
                 temperature=0.75,
-                speed=0.92
+                speed=0.88
             )
 
         # CRITICAL MEMORY LEAK FIX FOR MAC:

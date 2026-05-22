@@ -35,7 +35,7 @@ app = FastAPI(
 # Enable CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
+    allow_origins=["https://www.tingoradio.ai", "http://localhost:3000", "https://tingoradio.ai"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

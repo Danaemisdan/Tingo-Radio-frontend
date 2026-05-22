@@ -51,17 +51,22 @@ class LLMService:
             if not os.path.exists(MODEL_PATH):
                 logger.error(f"FATAL: Model not found at {MODEL_PATH}")
                 return
-            
-            logger.info("Loading Local GGUF Model into Apple Metal Memory...")
+
+            # n_gpu_layers=0: CPU-only. llama-cpp manages its own Metal allocations
+            # completely outside PyTorch — torch.mps.empty_cache() has zero effect on it.
+            # Keeping the LLM on CPU is more stable and prevents Metal OOM crashes.
+            # n_ctx=2048 halves the KV-cache RAM footprint vs the old 4096.
+            logger.info("Loading Local GGUF Model (CPU mode)...")
             self.llm = Llama(
                 model_path=MODEL_PATH,
-                n_gpu_layers=-1, # Offload entirely to Mac GPU (MPS)
-                n_ctx=4096,      # Context window
-                verbose=False    # Suppress verbose C++ logging
+                n_gpu_layers=0,
+                n_ctx=2048,
+                verbose=False
             )
             logger.info("Local GGUF Model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load Llama-CPP model: {e}")
+
 
     def generate_radio_script(self, show_profile: dict, prompt_modifier: str = "", duration_seconds: int = 45) -> str:
         """
@@ -92,8 +97,9 @@ FORMAT RULES — FOLLOW EXACTLY:
    - Use inline reactions: "Haha", "Oh wow", "No way!", "Wait, seriously?"
    - Hosts can trail off mid-thought, correct themselves, finish each other's thoughts
    - Short punchy responses are fine. Not every line needs to be a complete sentence.
-4. The hosts MUST alternate EVERY line without exception."""
-        user_prompt = f"Write a deeply natural, human-sounding radio conversation of about {word_count} words. Sound like two real friends on a podcast, not a formal broadcast. {prompt_modifier}"
+4. FLOW — Hosts can take longer turns. One host can speak 2-3 lines in a row sometimes before the other responds.
+5. CADENCE — Mix very short punchy lines with longer ones. Rhythm matters more than equal split."""
+        user_prompt = f"Write a gripping, natural radio conversation of about {word_count} words on this topic: {prompt_modifier}. Sound exactly like two sharp Nigerian radio presenters on air — warm, real, sometimes funny. Never stiff, never formal. Show their personalities."
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")
@@ -111,7 +117,7 @@ FORMAT RULES — FOLLOW EXACTLY:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    max_tokens=1024,
+                    max_tokens=2048,
                     temperature=0.85,
                     top_p=0.92,
                     repeat_penalty=1.18,
@@ -132,6 +138,49 @@ FORMAT RULES — FOLLOW EXACTLY:
             return result
         except Exception as e:
             return f"{host1_name}: Thanks for tuning in to {show_name}!\n{host2_name}: We will be right back!"
+        finally:
+            # Free any MPS tensors the LLM allocated during this generation pass
+            import gc; gc.collect()
+            try:
+                import torch
+                if torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+            except Exception:
+                pass
+
+    def generate_raw_sync(self, system_prompt: str, user_prompt: str, max_tokens: int = 300) -> str:
+        """
+        General-purpose single-call generation.
+        Used for single-narrator features like 'The Future In A Minute'
+        where the two-host radio format doesn't apply.
+        """
+        if not self.llm:
+            logger.error("LLM not initialized.")
+            return ""
+        try:
+            with self._lock:
+                response = self.llm.create_chat_completion(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user",   "content": user_prompt}
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.75,
+                    top_p=0.90,
+                    repeat_penalty=1.15
+                )
+            return response["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            logger.error(f"generate_raw_sync failed: {e}")
+            return ""
+        finally:
+            import gc; gc.collect()
+            try:
+                import torch
+                if torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+            except Exception:
+                pass
 
     def generate_conversational_response(self, caller_text: str, show_profile: dict) -> str:
         """

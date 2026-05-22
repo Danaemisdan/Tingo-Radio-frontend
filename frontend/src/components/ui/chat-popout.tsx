@@ -16,7 +16,7 @@ export function ChatPopout() {
         try {
             const formData = new FormData();
             formData.append("text", message);
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://1dd7-2409-40f0-46-1752-4495-2514-4da2-caaf.ngrok-free.app';
             await fetch(`${apiBase}/api/audience/message`, { 
                 method: "POST", 
                 body: formData 

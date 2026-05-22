@@ -13,7 +13,7 @@ export default function AdminDashboard() {
         setStatus("Submitting request...");
 
         try {
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://1dd7-2409-40f0-46-1752-4495-2514-4da2-caaf.ngrok-free.app';
             const response = await fetch(`${apiBase}/api/generate_show`, {
                 method: "POST",
                 headers: {

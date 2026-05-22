@@ -126,23 +126,37 @@ class CallerInterruptedException(Exception):
 
 def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str = ""):
     """
-    Waits, but returns early so the NEXT generator starts 40s before this track finishes!
-    Also polls for audience interactions every 1 second.
+    Waits (duration - 40)s so the next generator starts 40s before this track ends.
+    Used for show segments so generation of the next one overlaps with the tail of this one.
     """
     wait_time = max(1, duration - 40)
     logger.info(f"⏱  Waiting {wait_time:.0f}s for '{label}'... (-40s pre-buffer overlap)")
     for _ in range(int(wait_time)):
         if stop_event.is_set():
             return
-        
-        # Absolute preemption: If a caller clicked Call In, abort background generation immediately!
         if _radio_state.get("current_segment") == "interactive":
             raise CallerInterruptedException({"type": "live_caller_override"})
-            
         interaction = get_next_audience_interaction()
         if interaction:
             raise CallerInterruptedException(interaction)
-        
+        time.sleep(1)
+
+def _wait_full(duration: float, stop_event: threading.Event, label: str = ""):
+    """
+    Waits the FULL track duration (minus 3s crossfade buffer).
+    Used for songs so they always play completely before the next segment starts.
+    """
+    wait_time = max(1, duration - 3)
+    logger.info(f"⏱  Song wait: {wait_time:.0f}s for '{label}' (plays to end)")
+    for _ in range(int(wait_time)):
+        if stop_event.is_set():
+            return
+        # Callers can still interrupt even during songs
+        if _radio_state.get("current_segment") == "interactive":
+            raise CallerInterruptedException({"type": "live_caller_override"})
+        interaction = get_next_audience_interaction()
+        if interaction:
+            raise CallerInterruptedException(interaction)
         time.sleep(1)
 
 from pydub import AudioSegment
@@ -165,9 +179,10 @@ def transcribe_audio(file_path: str) -> str:
         logger.error(f"Failed to transcribe audio: {e}")
         return ""
 
-# --- MIXED FORMAT: SONGS, SHOWS, ADS ---
-SONGS_PER_SHOW = 2
-SHOWS_PER_AD = 1
+# ── Show block: keep generating segments until this many seconds of show are queued ──
+SHOW_BLOCK_TARGET_SECONDS = 660   # ~11 minutes of show content per block
+SHOWS_PER_AD = 1                  # Ad break after every show block
+SONGS_PER_SHOW = 3                # Songs between show blocks
 
 MUSIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../media/music"))
 
@@ -249,63 +264,114 @@ def _automation_loop_sync(stop_event: threading.Event):
                     
                     if intro_path:
                         push_to_liquidsoap_sync(intro_path)
-                        _wait_for_overlap(get_audio_duration(intro_path), stop_event, f"intro for {song_name}")
-                    
-                    # Push actual song
+                        intro_dur = get_audio_duration(intro_path)
+                        # Intro is short (~10-15s) — wait the full duration
+                        _wait_full(intro_dur, stop_event, f"intro for {song_name}")
+
+                    # Push song and wait for it to play to completion.
                     push_to_liquidsoap_sync(song_path)
                     song_dur = get_audio_duration(song_path)
-                    _wait_for_overlap(song_dur, stop_event, f"song {song_name}")
-                    
+                    logger.info(f"▶ Song '{song_name}' ({song_dur:.0f}s) — playing to end")
+                    _wait_full(song_dur, stop_event, f"song: {song_name}")
+
                     songs_since_last_show += 1
-                    continue # Loop back to play next song or drop into show
+                    continue
 
             # Reset song counter once we drop into a show
             songs_since_last_show = 0
 
-            # ── 2. SHOW BLOCK ─────────────────────────────────────────
+            # ── 2. SHOW BLOCK (10+ minutes) ─────────────────────────────────────
+            # Generate 3-minute segments back-to-back until we've queued 11 minutes.
             _radio_state["is_show_live"] = True
             _radio_state["current_show_name"] = sname
             _radio_state["current_segment"] = "show"
+
             topics = current_show.get("topics", ["Insane energy in Africa right now!"])
             if sname not in _used_topics or len(_used_topics[sname]) >= len(topics):
                 _used_topics[sname] = []
-            remaining = [t for t in topics if t not in _used_topics[sname]]
-            base_topic = random.choice(remaining)
-            _used_topics[sname].append(base_topic)
 
-            prompt_modifier = f"The general topic is: {base_topic}. "
+            show_block_queued_seconds = 0
+            segment_index = 0
 
-            from .news_scraper import scrape_live_news
-            live_news = scrape_live_news(base_topic)
-            if live_news:
-                prompt_modifier += "\\nAnd discuss this breaking news casually: " + live_news
+            while show_block_queued_seconds < SHOW_BLOCK_TARGET_SECONDS:
+                if stop_event.is_set():
+                    break
+                if _radio_state.get("current_segment") == "interactive":
+                    break
 
-            show_segment_counter += 1
-            output_name = f"show_segment_{show_segment_counter}.mp3"
-            logger.info(f"Generating Show: {current_show['show_name']} #{show_segment_counter}")
-            
-            # Make the heavy 45-second generation block fully interruptible!
-            from concurrent.futures import ThreadPoolExecutor
-            ai_audio_path = None
-            executor = ThreadPoolExecutor(max_workers=1)
-            future = executor.submit(show_generator.generate_show_segment_sync, current_show, prompt_modifier, output_name)
-            
-            while not future.done() and not stop_event.is_set():
-                interaction = get_next_audience_interaction()
-                if interaction:
-                    executor.shutdown(wait=False)
-                    raise CallerInterruptedException(interaction)
-                time.sleep(1)
-            
-            if not stop_event.is_set():
-                ai_audio_path = future.result()
-            executor.shutdown(wait=False)
+                # Rotate topics so each segment covers something different
+                remaining = [t for t in topics if t not in _used_topics[sname]]
+                if not remaining:
+                    _used_topics[sname] = []
+                    remaining = topics[:]
+                base_topic = random.choice(remaining)
+                _used_topics[sname].append(base_topic)
 
-            if ai_audio_path:
-                push_to_liquidsoap_sync(ai_audio_path)
-                seg_dur = get_audio_duration(ai_audio_path)
-                logger.info(f"▶ Queued Show {show_segment_counter} ({seg_dur:.0f}s). Overlapping next gen...")
-                _wait_for_overlap(seg_dur, stop_event, f"show {show_segment_counter}")
+                prompt_modifier = f"The general topic is: {base_topic}. "
+                from .news_scraper import scrape_live_news
+                live_news = scrape_live_news(base_topic)
+                if live_news:
+                    prompt_modifier += "\nAnd weave in this breaking news casually: " + live_news
+
+                show_segment_counter += 1
+                segment_index += 1
+                output_name = f"show_segment_{show_segment_counter}.mp3"
+                logger.info(f"Generating Show Block Segment {segment_index} for [{sname}] "
+                            f"({show_block_queued_seconds:.0f}s of {SHOW_BLOCK_TARGET_SECONDS}s done)")
+
+                # Generation (interruptible)
+                ai_audio_path = None
+                from concurrent.futures import ThreadPoolExecutor
+                executor = ThreadPoolExecutor(max_workers=1)
+                future = executor.submit(
+                    show_generator.generate_show_segment_sync,
+                    current_show, prompt_modifier, output_name
+                )
+                while not future.done() and not stop_event.is_set():
+                    interaction = get_next_audience_interaction()
+                    if interaction:
+                        executor.shutdown(wait=False)
+                        raise CallerInterruptedException(interaction)
+                    time.sleep(1)
+
+                if not stop_event.is_set():
+                    ai_audio_path = future.result()
+                executor.shutdown(wait=False)
+
+                if ai_audio_path:
+                    push_to_liquidsoap_sync(ai_audio_path)
+                    seg_dur = get_audio_duration(ai_audio_path)
+                    show_block_queued_seconds += seg_dur
+                    logger.info(f"▶ Queued Show Segment {segment_index} ({seg_dur:.0f}s). "
+                                f"Block total: {show_block_queued_seconds:.0f}s / {SHOW_BLOCK_TARGET_SECONDS}s")
+
+                    # If more segments needed, start generating next while this one plays
+                    if show_block_queued_seconds < SHOW_BLOCK_TARGET_SECONDS:
+                        # Wait most of this segment so queue stays fed, then generate next
+                        _wait_for_overlap(seg_dur, stop_event, f"show segment {segment_index}")
+                    else:
+                        # Last segment — wait full duration so songs don't overlap with show
+                        full_wait = max(1, seg_dur - 5)
+                        logger.info(f"⏳ Show block complete ({show_block_queued_seconds:.0f}s). Waiting for last segment...")
+                        _wait_for_overlap(full_wait, stop_event, f"show block final segment")
+
+            # ── 2.5. THE FUTURE IN A MINUTE ───────────────────────────
+            # Airs once at each daypart boundary (9h, 12h, 14h, 17h, 20h, 23h WAT).
+            # Single-narrator 45-75s feature using a real live news story.
+            try:
+                from .future_in_a_minute import should_air_now, generate_future_in_a_minute_sync
+                if should_air_now():
+                    logger.info("🔮 Daypart boundary — generating 'The Future In A Minute'...")
+                    _radio_state["current_segment"] = "feature"
+                    fim_path = generate_future_in_a_minute_sync()
+                    if fim_path:
+                        push_to_liquidsoap_sync(fim_path)
+                        fim_dur = get_audio_duration(fim_path)
+                        logger.info(f"▶ 'The Future In A Minute' on air ({fim_dur:.0f}s)")
+                        _wait_for_overlap(fim_dur, stop_event, "Future In A Minute")
+                    _radio_state["current_segment"] = "show"
+            except Exception as fim_err:
+                logger.error(f"'The Future In A Minute' failed — skipping: {fim_err}")
 
             # ── 3. AD BREAK ───────────────────────────────────────────
             shows_since_last_ad += 1

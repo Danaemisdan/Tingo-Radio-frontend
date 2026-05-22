@@ -33,18 +33,22 @@ cd "$BACKEND_DIR"
 echo "🔐 Encrypting Core FastAPI Engine (app/)..."
 "$PYARMOR_EXE" gen -O "$SHIPPING_DIR" -r app/
 
-echo "🔐 Encrypting Zero-Shot Voice Cloning Engine (tts_server/)..."
-# We DO NOT use -r here because we don't want to encrypt the massive PyTorch xtts_env!
-"$PYARMOR_EXE" gen -O "$SHIPPING_DIR/tts_server" tts_server/main.py
+echo "📂 Copying XTTS Server (plain — NOT encrypted to avoid PyArmor Python version lock)..."
+# IMPORTANT: tts_server/main.py must NOT be obfuscated. PyArmor locks the bytecode
+# to the Python version used at build time (3.9), but Coqui TTS requires Python 3.10+.
+# Encrypting it causes RuntimeError: this Python version is not supported on boot.
+mkdir -p "$SHIPPING_DIR/tts_server"
+cp tts_server/main.py "$SHIPPING_DIR/tts_server/main.py"
 
 echo "📂 Copying clear text configurables..."
 # We explicitly copy only what is needed, leaving out virtual environments and raw pycache
 
 # Core Orchestrators
 cp start_radio.sh "$SHIPPING_DIR/"
+cp simple_liquidsoap.py "$SHIPPING_DIR/"
+cp requirements.txt "$SHIPPING_DIR/"
 cp radio.liq "$SHIPPING_DIR/"
 cp icecast.xml "$SHIPPING_DIR/"
-cp requirements.txt "$SHIPPING_DIR/"
 
 # Configuration Rules
 cp shows.json "$SHIPPING_DIR/"
@@ -56,6 +60,14 @@ cp -r media/ "$SHIPPING_DIR/media/"
 if [ -d "models" ]; then
     cp -r models/ "$SHIPPING_DIR/models/"
 fi
+
+# ─── Create required runtime directories ─────────────────────────────────────
+# xtts_env is intentionally NOT included — start_radio.sh builds it on first run
+# using python3.10. This keeps Shipping fully self-contained and portable.
+mkdir -p "$SHIPPING_DIR/tts_server/outputs"
+mkdir -p "$SHIPPING_DIR/media/shows"
+mkdir -p "$SHIPPING_DIR/media/ads"
+echo "📁 Runtime directories created."
 
 echo ""
 echo "====================================="

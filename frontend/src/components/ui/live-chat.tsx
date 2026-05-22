@@ -123,7 +123,7 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
   const inputRef = useRef<HTMLInputElement>(null);
 
   // In production on Vercel, NEXT_PUBLIC_API_URL must be set to the Cloudflare tunnel URL.
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://1dd7-2409-40f0-46-1752-4495-2514-4da2-caaf.ngrok-free.app";
 
   const failCountRef = useRef(0);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
