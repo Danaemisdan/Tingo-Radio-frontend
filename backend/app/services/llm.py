@@ -78,6 +78,8 @@ class LLMService:
         show_name = show_profile.get("show_name", "Tingo AI Radio")
         concept = show_profile.get("concept", "A high-energy morning radio show.")
 
+        language = show_profile.get("language", "en")
+        
         system_prompt = f"""You are a professional radio scriptwriter for "{show_name}". Concept: {concept}
 
 The show is hosted by TWO real people who banter and alternate every single line: {host1_name} (female) and {host2_name} (male).
@@ -98,8 +100,9 @@ FORMAT RULES — FOLLOW EXACTLY:
    - Hosts can trail off mid-thought, correct themselves, finish each other's thoughts
    - Short punchy responses are fine. Not every line needs to be a complete sentence.
 4. FLOW — Hosts can take longer turns. One host can speak 2-3 lines in a row sometimes before the other responds.
-5. CADENCE — Mix very short punchy lines with longer ones. Rhythm matters more than equal split."""
-        user_prompt = f"Write a gripping, natural radio conversation of about {word_count} words on this topic: {prompt_modifier}. Sound exactly like two sharp Nigerian radio presenters on air — warm, real, sometimes funny. Never stiff, never formal. Show their personalities."
+5. CADENCE — Mix very short punchy lines with longer ones. Rhythm matters more than equal split.
+6. LANGUAGE — The ENTIRE spoken script MUST be completely translated and written natively in the '{language}' language! Do NOT output English unless the requested language is 'en'."""
+        user_prompt = f"Write a gripping, natural radio conversation of about {word_count} words on this topic: {prompt_modifier}. Sound exactly like two sharp Nigerian radio presenters on air — warm, real, sometimes funny. Never stiff, never formal. Show their personalities. The spoken language MUST be '{language}'."
 
         if not self.llm:
             logger.error("LLM not initialized properly. Generating fallback script.")

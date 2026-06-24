@@ -62,6 +62,15 @@ end
 
 radio_stream_synced = on_metadata(on_track_change, radio_stream)
 
+# --- Archiving ---
+# Save the live stream directly to disk chunked by hour
+output.file(
+  %mp3(bitrate=192),
+  "ARCHIVE_DIR_PLACEHOLDER/archive-%Y-%m-%d-%H.mp3",
+  reopen_when={ 0m0s },
+  radio_stream_synced
+)
+
 # --- Icecast Output ---
 output.icecast(
   %mp3(bitrate=320),

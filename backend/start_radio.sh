@@ -142,8 +142,11 @@ MUSIC_ABS="$BACKEND_DIR/media/music"
 if [ -n "$LIQUIDSOAP" ] && [ -f "$LIQUIDSOAP" ]; then
     echo "🎵 Starting Liquidsoap..."
     # Generate a temp .liq with the real absolute music path substituted in.
-    # This avoids Liquidsoap version differences with getenv() / environment.get().
-    sed "s|MUSIC_DIR_PLACEHOLDER|$MUSIC_ABS|g" "$BACKEND_DIR/radio.liq" > /tmp/tingo_radio.liq
+    # Make sure we use absolute paths for Liquidsoap
+    MUSIC_ABS="$BACKEND_DIR/media/music"
+    ARCHIVE_ABS="$BACKEND_DIR/media/archives"
+    mkdir -p "$ARCHIVE_ABS"
+    sed "s|MUSIC_DIR_PLACEHOLDER|$MUSIC_ABS|g; s|ARCHIVE_DIR_PLACEHOLDER|$ARCHIVE_ABS|g" "$BACKEND_DIR/radio.liq" > /tmp/tingo_radio.liq
     nohup "$LIQUIDSOAP" /tmp/tingo_radio.liq > /tmp/liquidsoap.log 2>&1 &
     sleep 3
 elif [ -f "$BACKEND_DIR/simple_liquidsoap.py" ]; then

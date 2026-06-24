@@ -11,7 +11,8 @@
       "The habits of people who never seem to run out of energy",
       "Why the world feels different at 4am",
       "Sleep, dreams, and what your body is actually trying to tell you"
-    ]
+    ],
+    "language": "en"
   },
   {
     "show_name": "The Wake Up Call",
@@ -26,7 +27,8 @@
       "Global politics and how it lands in your pocket",
       "Government policy update and what Nigerians think about it",
       "Inflation, fuel, exchange rate: what changed overnight"
-    ]
+    ],
+    "language": "fr"
   },
   {
     "show_name": "Tingo Morning Adrenaline",
@@ -41,7 +43,8 @@
       "Unpopular opinion of the day: listeners react to the hottest take",
       "Who had the worst week in pop culture and why",
       "Marriage, money, and the things Nigerians refuse to say out loud"
-    ]
+    ],
+    "language": "es"
   },
   {
     "show_name": "Business and Markets",
@@ -56,7 +59,8 @@
       "The fintech sector is exploding: which startups to watch",
       "Real estate in Lagos in 2025: buy, rent, or escape?",
       "Investing on a Nigerian salary: is it even realistic?"
-    ]
+    ],
+    "language": "de"
   },
   {
     "show_name": "The Conversation",
@@ -71,7 +75,8 @@
       "The Japa wave: brain drain or necessary survival?",
       "Social media activism in Nigeria: does it actually change anything?",
       "The real cost of corruption on the everyday Nigerian"
-    ]
+    ],
+    "language": "yo"
   },
   {
     "show_name": "Trending Now",
@@ -86,7 +91,8 @@
       "TikTok Nigeria: the creators who are genuinely popping off right now",
       "Cancel culture hits Nigeria: the discourse nobody can agree on",
       "Viral moment of the week: breakdown and hot takes"
-    ]
+    ],
+    "language": "ha"
   },
   {
     "show_name": "The Midday Report",
@@ -101,7 +107,8 @@
       "Security and safety in Nigeria: honest conversation",
       "International news that actually affects the African continent",
       "Sports update: Nigeria's teams and African football in focus"
-    ]
+    ],
+    "language": "pt"
   },
   {
     "show_name": "Lunch Break Vibes",
@@ -116,7 +123,8 @@
       "Underrated Nigerian artists who deserve way more attention",
       "Has Afrobeats peaked globally or is the best still coming?",
       "The song you cannot get out of your head and what it says about you"
-    ]
+    ],
+    "language": "en"
   },
   {
     "show_name": "The Hustle Hour",
@@ -131,7 +139,8 @@
       "Digital skills that are actually paying real money right now",
       "Networking in Nigeria: the unspoken rules of getting ahead",
       "Failure is not the end: stories of Nigerian founders who bounced back"
-    ]
+    ],
+    "language": "fr"
   },
   {
     "show_name": "Afrobeats Countdown",
@@ -146,7 +155,8 @@
       "Deep cut of the week: a banger from the archive that still slaps",
       "Producer spotlight: the beatmaker behind the biggest songs right now",
       "Listener vote: which song should be number one and why"
-    ]
+    ],
+    "language": "es"
   },
   {
     "show_name": "Street Talk",
@@ -161,7 +171,8 @@
       "relationship issues special: listeners share their wildest experiences",
       "The funniest or most shocking thing you witnessed in Lagos this week",
       "If you could fix one thing about Nigeria overnight, what would it be?"
-    ]
+    ],
+    "language": "de"
   },
   {
     "show_name": "Drive Time Rush",
@@ -176,7 +187,8 @@
       "Funny work story of the day: listeners share the chaos",
       "Evening hot take: the thing nobody wants to say about today's news",
       "Weekend plans: what Lagos has on and where to go"
-    ]
+    ],
+    "language": "yo"
   },
   {
     "show_name": "The 5 O'Clock Fix",
@@ -191,7 +203,8 @@
       "Sports wrap: results, transfers, and Nigerian football latest",
       "Tonight's agenda: what to watch for in the next 24 hours",
       "International headline that Nigerians need to pay attention to"
-    ]
+    ],
+    "language": "ha"
   },
   {
     "show_name": "Tech and Tomorrow",
@@ -206,7 +219,8 @@
       "The African creator economy: how content is becoming currency",
       "Cybersecurity in Nigeria: the threats you are ignoring",
       "Will AI replace your job? Real talk for Nigerian professionals in 2025"
-    ]
+    ],
+    "language": "pt"
   },
   {
     "show_name": "Man vs Machine",
@@ -225,7 +239,8 @@
       "Human intuition vs AI logic: who makes the better life decision?",
       "Can AI predict who is lying or is that still a human superpower?",
       "Who understands heartbreak better: someone who felt it or something that analyzed it?"
-    ]
+    ],
+    "language": "en"
   },
   {
     "show_name": "The Night Shift",
@@ -240,7 +255,8 @@
       "Social media personality breakdown: who is winning and who is fading",
       "Pop culture quiz: how well do you know Nigerian entertainment history?",
       "The entertainment beef nobody is ready to squash: full breakdown"
-    ]
+    ],
+    "language": "fr"
   },
   {
     "show_name": "Deep Cuts",
@@ -255,7 +271,8 @@
       "Deep cut of the week: an obscure track that is genuinely incredible",
       "Genre spotlight: Fuji, Highlife, Juju: the roots of everything you love",
       "The Afrobeats artist who is too good for the mainstream to understand yet"
-    ]
+    ],
+    "language": "es"
   },
   {
     "show_name": "Unfiltered",
@@ -270,7 +287,8 @@
       "Honest talk about money: the shame, the struggle, and the breakthroughs",
       "Nigerian masculinity and femininity: the conversations we need to have",
       "Things you wish you could tell your younger self with absolutely no sugarcoating"
-    ]
+    ],
+    "language": "de"
   },
   {
     "show_name": "Midnight Frequencies",
@@ -285,7 +303,8 @@
       "Listener confession: the thing you have never told anyone until now",
       "Late night nostalgia: the decade that shaped who you are",
       "What does a perfect night actually sound like to you?"
-    ]
+    ],
+    "language": "yo"
   },
   {
     "show_name": "Africa Tonight",
@@ -300,7 +319,8 @@
       "South Africa: the politics, the culture, and the complicated relationship with Nigeria",
       "Francophone Africa: the stories English-speaking Africa never hears",
       "African unity in 2025: is it still a dream or becoming a reality?"
-    ]
+    ],
+    "language": "ha"
   },
   {
     "show_name": "Tingo Overnight",
@@ -315,6 +335,7 @@
       "History of Nigeria at 3am: stories from the archives",
       "The science of sleep, dreams, and why your brain does what it does at night",
       "Philosophy at midnight: the big questions humans have always asked"
-    ]
+    ],
+    "language": "pt"
   }
 ]

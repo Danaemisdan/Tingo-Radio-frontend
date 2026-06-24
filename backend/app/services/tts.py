@@ -57,7 +57,7 @@ def parse_script(script_text: str) -> list[dict]:
                 parsed.append({"speaker": speaker, "text": text})
     return parsed
 
-def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interactive: bool = False):
+def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interactive: bool = False, language: str = "en"):
     """
     Synthesize one line using local XTTS zero-shot cloning server or edge-tts for interactive.
     """
@@ -194,7 +194,7 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
     payload = {
         "text": final_text,
         "speaker_wav": voice,
-        "language": "en"
+        "language": language
     }
 
     import time
@@ -214,7 +214,7 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
                 logger.error(f"XTTS failed after {max_retries} attempts for voice {voice}: {e}")
                 raise RuntimeError(f"XTTS Voice Cloning failed: {e}")
 
-def synthesize_show_sync(script_text: str, output_filename: str) -> str:
+def synthesize_show_sync(script_text: str, output_filename: str, language: str = "en") -> str:
     """
     Full synchronous show synthesis: parse script → TTS per line → ffmpeg concat → ducked bg beat.
     """
@@ -245,7 +245,7 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
                 voice = "Dozy_target.wav"
                 
             temp_file = os.path.join(SHOWS_DIR, f"tmp_{job_id}_{i}.wav")
-            generate_line_audio_sync(text, voice, temp_file)
+            generate_line_audio_sync(text, voice, temp_file, is_interactive=False, language=language)
             temp_files.append(temp_file)
 
         final_path = os.path.join(SHOWS_DIR, output_filename)

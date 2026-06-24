@@ -113,6 +113,57 @@ async def list_songs():
     
     return {"songs": songs}
 
+@app.get("/api/archives")
+async def get_archives():
+    """Returns all recorded live stream archives."""
+    import os as _os
+    from datetime import datetime
+    ARCHIVE_DIR = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "../../media/archives"))
+    archives = []
+    if not _os.path.isdir(ARCHIVE_DIR):
+        return {"archives": []}
+    
+    for fname in sorted(_os.listdir(ARCHIVE_DIR), reverse=True):
+        if not fname.endswith(".mp3"):
+            continue
+        
+        # Format: archive-2025-06-25-10.mp3
+        try:
+            parts = fname.replace(".mp3", "").split("-")
+            year, month, day, hour = parts[1], parts[2], parts[3], parts[4]
+            date_str = f"{year}-{month}-{day}"
+            display_date = datetime.strptime(date_str, "%Y-%m-%d").strftime("%b %d, %Y")
+            time_str = f"{hour}:00"
+            episode = f"Live Broadcast — {time_str}"
+        except:
+            display_date = "Unknown Date"
+            episode = fname
+
+        file_path = _os.path.join(ARCHIVE_DIR, fname)
+        size_mb = _os.path.getsize(file_path) / (1024 * 1024)
+
+        archives.append({
+            "id": fname,
+            "showName": "Tingo Live Archive",
+            "episode": episode,
+            "hosts": "Ife & Dozy",
+            "duration": f"{size_mb:.1f} MB",
+            "date": display_date,
+            "url": f"/api/archives/{fname}",
+            "gradient": "from-violet-600 to-indigo-600"
+        })
+        
+    return {"archives": archives}
+
+@app.get("/api/archives/{filename}")
+async def serve_archive(filename: str):
+    import os as _os
+    from fastapi.responses import FileResponse
+    ARCHIVE_DIR = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "../../media/archives"))
+    file_path = _os.path.join(ARCHIVE_DIR, filename)
+    if _os.path.exists(file_path):
+        return FileResponse(file_path, media_type="audio/mpeg")
+    return {"error": "File not found"}
 
 @app.get("/api/stream")
 async def stream_proxy():

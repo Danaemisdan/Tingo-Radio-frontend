@@ -41,6 +41,8 @@ class ShowGeneratorService:
         Multiple back-to-back calls build a 10+ minute show block.
         """
         logger.info(f"Generating show script for [{show_profile['show_name']}]")
+        language = show_profile.get("language", "en")
+        
         script = llm_generate.generate_radio_script(
             show_profile=show_profile,
             prompt_modifier=prompt_modifier,
@@ -50,8 +52,8 @@ class ShowGeneratorService:
         # Strip any stage directions the LLM snuck in (belt+suspenders)
         script = strip_stage_directions(script)
 
-        logger.info("Script generated, synthesizing audio now...")
-        audio_path = synthesize_show_sync(script, output_filename)
+        logger.info(f"Script generated, synthesizing audio now (Language: {language})...")
+        audio_path = synthesize_show_sync(script, output_filename, language=language)
 
         if audio_path:
             logger.info(f"Show segment done → {audio_path}")
