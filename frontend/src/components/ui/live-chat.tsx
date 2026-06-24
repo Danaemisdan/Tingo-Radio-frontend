@@ -383,36 +383,21 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
           className="flex flex-col h-full"
         >
           {/* ── Header ── */}
-          <div className="flex items-center justify-between px-4 py-3 shrink-0"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-            <div className="flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-70">
-                <circle cx="12" cy="12" r="3" fill="#fb923c"/>
-                <path d="M6.3 6.3a8 8 0 010 11.4M17.7 6.3a8 8 0 010 11.4" stroke="#fb923c" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M3 3a14 14 0 010 18M21 3a14 14 0 010 18" stroke="#fb923c" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
-              </svg>
-              <span className="text-xs font-bold tracking-widest" style={{ color: "#fb923c", letterSpacing: "0.15em" }}>frequency</span>
+          <div className="shrink-0 px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            {/* Gradient title with wrapper for proper glow */}
+            <div style={{ filter: "drop-shadow(0 0 12px rgba(251,146,60,0.8))" }}>
+              <h2 className="text-xl font-bold tracking-[0.2em] uppercase bg-gradient-to-b from-white via-orange-400 to-orange-600 bg-clip-text text-transparent pb-1 ml-1">
+                Frequency
+              </h2>
             </div>
-            {/* Call Button */}
-            {/* --- CALL IN TOGGLE (Hidden for now!) --- */}
-            {/* 
-            <button
-              onClick={handleCallToggle}
-              title={inCall ? "End call" : showIsLive ? `Call into ${showName || "the show"} live!` : "Call In is only active during a show"}
-              disabled={!showIsLive && !inCall}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                (!showIsLive && !inCall)
-                  ? "bg-white/5 text-white/20 cursor-not-allowed opacity-50"
-                  : inCall
-                  ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-                  : "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25 cursor-pointer animate-pulse"
-              }`}
-            >
-              {inCall ? <PhoneOff className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
-              <span>{inCall ? "End" : showIsLive ? "Call In" : "Off Air"}</span>
-            </button>
-            */}
+
+            {/* Subtitle */}
+
+            <p className="text-white/75 text-xs tracking-wide mt-1.5">
+              Chat with Ife &amp; Dozy in real time
+            </p>
           </div>
+
 
           {/* ── Call Banner ── */}
           <AnimatePresence>
@@ -501,9 +486,15 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             </AnimatePresence>
 
             {messages.length === 0 && !showPasscodeUI && (
-              <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
-                <span className="text-3xl">👀</span>
-                <p className="text-white/25 text-xs">No messages yet.<br />Say hi — Ife and Tingo are listening!</p>
+              <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full" />
+                  <span className="text-4xl relative z-10 drop-shadow-lg">✨</span>
+                </div>
+                <h4 className="text-white/80 font-medium text-sm mt-2">No messages yet</h4>
+                <p className="text-white/40 text-xs max-w-[200px] leading-relaxed">
+                  Join the conversation! Say hi — Ife and Tingo are listening.
+                </p>
               </div>
             )}
             {!showPasscodeUI && messages.map((msg, i) => {
@@ -597,11 +588,16 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
               )}
             </AnimatePresence>
 
-            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 transition-all ${
-              superChatMode
-                ? "bg-orange-500/10 border border-orange-400/40"
-                : "bg-white/5 border border-white/10 focus-within:border-white/20"
-            }`}>
+            <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 transition-all duration-300 relative overflow-hidden ${
+              superChatMode 
+                ? "bg-orange-500/10 border-orange-500/50 shadow-[0_0_15px_rgba(251,146,60,0.2)]" 
+                : "bg-white/5 border-white/10 hover:bg-white/10 focus-within:border-white/30 focus-within:bg-white/10 focus-within:shadow-[0_0_20px_rgba(255,255,255,0.05)]"
+            } border`}>
+              
+              {/* Animated focus glow */}
+              <div className="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-500 group-focus-within:opacity-100">
+                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent blur-sm" />
+              </div>
               <span className="text-xs shrink-0 font-bold" style={{ color: getUserColor(username) }}>
                 {username}
               </span>

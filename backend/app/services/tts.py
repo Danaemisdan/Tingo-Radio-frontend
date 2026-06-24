@@ -81,14 +81,27 @@ def generate_line_audio_sync(text: str, voice: str, output_path: str, is_interac
     # Strip emojis that make XTTS moan/hum
     text = re.sub(r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U00002702-\U000027B0]+', '', text).strip()
 
+    # Remove repeated exclamation/question marks that break XTTS prosody
+    text = re.sub(r'([!?.]){2,}', r'\1', text)
+    # Strip weird symbols that cause hallucinated moans
+    text = re.sub(r'[~^*_&#$%]', ' ', text)
+    text = text.replace('"', '').replace('`', '')
+    
     # ----------------------------------------------------------------
-    # SHARED FILLER NORMALIZATION (both XTTS and edge-tts paths)
+    # SHARED FILLER & PHONETIC NORMALIZATION
     # ----------------------------------------------------------------
     SHARED_MAP = {
         r'\bMm\b': 'hmm',   r'\bmm\b': 'hmm',
         r'\bMhm\b': 'mm-hmm', r'\bmhm\b': 'mm-hmm',
         r'\bUhh\b': 'uh',   r'\buhh\b': 'uh',
         r'\bOAP\b': 'O-A-P', r'\bMIC\b': 'mike',
+        # Phonetics to fix common AI gibberish
+        r'\bTingo\b': 'Ting-go',
+        r'\btingo\b': 'ting-go',
+        r'\bfeat\.\b': 'featuring',
+        r'\bft\.\b': 'featuring',
+        r'\bAI\b': 'A I',
+        r'\bLLM\b': 'L L M',
     }
     for p, r in SHARED_MAP.items():
         text = re.sub(p, r, text)
@@ -251,10 +264,11 @@ def synthesize_show_sync(script_text: str, output_filename: str) -> str:
         with open(concat_audio_path, "wb") as f:
             combined.export(f, format="wav")
 
-        # Convert to 320k MP3 — NO speed manipulation (atempo was making voices robotic)
+        # Convert to 320k MP3 and slightly speed up to fix the 'drunk/slow' XTTS artifact
         try:
             subprocess.run([
                 "ffmpeg", "-y", "-i", concat_audio_path,
+                "-filter:a", "atempo=1.15",
                 "-c:a", "libmp3lame", "-b:a", "320k",
                 final_path
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)

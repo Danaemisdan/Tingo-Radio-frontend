@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import HeroWave from '@/components/ui/dynamic-wave-canvas-background';
 import { Heart, Share2, ListPlus } from 'lucide-react';
 import { MicroExpander } from '@/components/ui/micro-expander';
@@ -9,6 +9,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { MinimalVolumeBar } from '@/components/ui/minimal-volume-bar';
 import { LiveChat, FloatingEmojiOverlay, SuperChatOverlay, FloatingEmoji } from '@/components/ui/live-chat';
+import { SplashHero } from '@/components/ui/music-reactive-hero-section';
+import { LiveRadioPlayer } from '@/components/ui/live-radio-player';
+import { SavedTracksView } from '@/components/ui/saved-tracks';
+import { MusicLibraryView } from '@/components/ui/music-library';
+import { SessionsView } from '@/components/ui/sessions-view';
+
+type Tab = 'radio' | 'archive' | 'sounds' | 'collection';
 
 interface ChatMessage {
   user: string;
@@ -17,18 +24,42 @@ interface ChatMessage {
   type?: "normal" | "reaction" | "superchat";
 }
 
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'radio',      label: 'Live' },
+  { id: 'archive',    label: 'The Archive' },
+  { id: 'sounds',     label: 'Tingo Sounds' },
+  { id: 'collection', label: 'My Collection' },
+];
+
+const LANGUAGES = [
+  { code: 'en', label: 'English',   flag: '🇬🇧' },
+  { code: 'fr', label: 'Français',  flag: '🇫🇷' },
+  { code: 'es', label: 'Español',   flag: '🇪🇸' },
+  { code: 'de', label: 'Deutsch',   flag: '🇩🇪' },
+  { code: 'yo', label: 'Yorùbá',    flag: '🇳🇬' },
+  { code: 'ha', label: 'Hausa',     flag: '🇳🇬' },
+  { code: 'pt', label: 'Português', flag: '🇧🇷' },
+  { code: 'ar', label: 'العربية',   flag: '🇸🇦' },
+  { code: 'zh', label: '中文',       flag: '🇨🇳' },
+  { code: 'hi', label: 'हिन्दी',     flag: '🇮🇳' },
+];
+
 export default function RadioPage() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(50);
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [superChats, setSuperChats] = useState<ChatMessage[]>([]);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  // Always false on first render (matches SSR) — updated after mount to avoid React #418 hydration error
+  const [hasTunedIn, setHasTunedIn] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('radio');
+  const [language, setLanguage] = useState('en');
+  const [langOpen, setLangOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
+
   useEffect(() => {
     setIsMobile(navigator.maxTouchPoints > 0 || window.innerWidth < 768);
   }, []);
-
 
   const handleFloatingEmoji = useCallback((fe: FloatingEmoji) => {
     setFloatingEmojis(prev => [...prev, fe]);
@@ -38,18 +69,136 @@ export default function RadioPage() {
   }, []);
 
   return (
-    // On mobile, we disable GPU-heavy aurora effects automatically via CSS media queries in the classnames
     <main className="relative min-h-screen min-h-dvh w-full bg-black text-white overflow-hidden selection:bg-white/30">
 
-      {/* Tingo Logo — top left */}
-      <div className="absolute top-8 left-8 z-50">
-        <Image src="/tingo_logo_minimal.svg" alt="Tingo Logo" width={100} height={35}
-          className="opacity-100 cursor-pointer block" />
-      </div>
+      {/* ── Top Navigation ── */}
+      <AnimatePresence>
+        {hasTunedIn && (
+          <motion.nav
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={[
+              "fixed top-0 inset-x-0 z-[60] h-16 sm:h-20 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 transition-[padding] duration-500",
+              // Shift nav content left when the chat sidebar is visible on desktop
+              isPlaying && activeTab === 'radio' ? "md:pr-[344px]" : "",
+            ].join(" ")}
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%)' }}
+          >
+            {/* Logo — left (fixed width so center stays true on desktop) */}
+            <div className="shrink-0 w-8 sm:w-32 flex items-center">
+              <Image src="/tingo_logo_minimal.svg" alt="Tingo" width={120} height={48} className="block cursor-pointer w-auto h-6 sm:h-12" />
+            </div>
+
+            {/* Tabs — true center via flex-1 + justify-center */}
+            <div className="flex-1 flex justify-center pointer-events-auto overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+              <div className="flex items-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-full p-1 gap-0.5 sm:gap-1">
+                {TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
+                      activeTab === tab.id ? 'text-white' : 'text-white/45 hover:text-white/80'
+                    }`}
+                  >
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="tab-pill"
+                        className="absolute inset-0 bg-white/15 rounded-full"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Language — right */}
+            <div className="shrink-0 w-auto sm:w-32 flex justify-end pointer-events-auto">
+              <div className="relative">
+                <button
+                  onClick={() => setLangOpen(o => !o)}
+                  className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/10 rounded-full px-2 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-sm font-medium text-white/90 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer"
+                >
+                  <span className="text-sm sm:text-base">{currentLang.flag}</span>
+                  <span className="hidden sm:inline">{currentLang.label}</span>
+                  <motion.svg
+                    animate={{ rotate: langOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    className="opacity-50 hidden sm:block"
+                  >
+                    <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </motion.svg>
+                </button>
+
+                <AnimatePresence>
+                  {langOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[49]" onClick={() => setLangOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        className="absolute top-full right-0 mt-2 z-[50] min-w-[180px] rounded-2xl overflow-hidden"
+                        style={{
+                          background: 'rgba(12,12,18,0.97)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          backdropFilter: 'blur(30px)',
+                          WebkitBackdropFilter: 'blur(30px)',
+                          boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                        }}
+                      >
+                        {LANGUAGES.map((lang, i) => (
+                          <motion.button
+                            key={lang.code}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => { setLanguage(lang.code); setLangOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all text-left ${
+                              lang.code === language
+                                ? 'text-white font-semibold bg-white/5'
+                                : 'text-white/55 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            <span className="text-base">{lang.flag}</span>
+                            <span className="flex-1">{lang.label}</span>
+                            {lang.code === language && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
 
       {/* Fade-in from black */}
       <motion.div initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 1.0 }}
         className="fixed inset-0 z-[9999] bg-black pointer-events-none" />
+
+      {/* Splash Screen */}
+      <AnimatePresence>
+        {!hasTunedIn && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -50 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="absolute inset-0 z-[100]"
+          >
+            <SplashHero onTuneIn={() => setHasTunedIn(true)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Wave background */}
       <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
@@ -57,12 +206,10 @@ export default function RadioPage() {
       </div>
 
       {/* Aurora when playing */}
-      {/* Aurora when playing */}
       <AnimatePresence>
         {isPlaying && (
           <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-            {/* Removed mix-blend-screen to fix iOS Safari blocky GPU artifact bug */}
             <motion.div
               className="absolute top-[20%] left-[10%] w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] bg-[#FF6B35] blur-[80px] sm:blur-[100px] rounded-full opacity-20 transform-gpu"
               animate={{ scale: [1, 1.2, 1], x: ['0%', '10%', '0%'], y: ['0%', '-10%', '0%'] }}
@@ -71,10 +218,6 @@ export default function RadioPage() {
               className="absolute bottom-[10%] right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-[#22d3ee] blur-[80px] sm:blur-[100px] rounded-full opacity-15 transform-gpu"
               animate={{ scale: [1, 1.3, 1], x: ['0%', '-15%', '0%'], y: ['0%', '10%', '0%'] }}
               transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} />
-            <motion.div
-              className="hidden md:block absolute top-[40%] left-[30%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-[#FF8E5E] blur-[100px] rounded-full opacity-15 transform-gpu"
-              animate={{ scale: [1, 1.4, 1], x: ['0%', '20%', '0%'], y: ['0%', '20%', '0%'] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -85,135 +228,56 @@ export default function RadioPage() {
       {/* Super Chat Banner */}
       <SuperChatOverlay messages={superChats} />
 
-
-
-      {/*
-       * ── Main Player Container ──
-       * On mobile: always centered (no x-shift)
-       * On desktop (md+): shifts left by 160px to make room for the chat sidebar
-       * We use pure CSS transition — NOT framer-motion x — so it doesn't
-       * conflict with the CSS translate(-50%) centering trick.
-       */}
-      {/* pb-safe ensures iOS home indicator doesn't overlap the player */}
+      {/* ── Main Content Area ── */}
       <div
         className={[
-          "absolute bottom-0 z-30 flex flex-col items-center",
-          "w-full px-4",
-          // On desktop, shift left slightly when sidebar is open, stay centered on mobile
-          isPlaying
-            ? "left-1/2 -translate-x-1/2 md:left-[calc(50%-80px)] md:-translate-x-1/2"
-            : "left-1/2 -translate-x-1/2",
-          "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+          "absolute inset-0 z-30 pt-20",
+          isPlaying && activeTab === 'radio' ? "md:pr-[320px]" : "",
+          "transition-all duration-500",
         ].join(" ")}
-        style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom, 0px))' }}
       >
-        {/* Program card — hidden on mobile to keep it clean */}
-        <div className="hidden sm:flex items-end justify-center pointer-events-auto relative w-full max-w-[320px] sm:max-w-[350px] min-h-[64px]">
-          <AnimatePresence>
-            {isPlaying && (
-              <motion.div key="card"
-                initial={{ opacity: 0, scale: 0.7, y: 50, filter: "blur(20px)" }}
-                animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, scale: 0.7, y: 50, filter: "blur(20px)" }}
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                style={{ transformOrigin: "bottom center" }}
-                className="absolute bottom-full mb-2 w-full rounded-[2rem] bg-zinc-950/95 backdrop-blur-3xl border border-white/10 p-5 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col gap-4 z-[100]"
-              >
-                <div className="w-full aspect-square rounded-[1.25rem] overflow-hidden bg-black shrink-0 relative shadow-inner ring-1 ring-white/10">
-                  <Image src="/LLAMA.png" fill className="object-cover" alt="LLAMA" />
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-5 z-10 flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,1)]" />
-                    <span className="text-red-500 font-bold text-sm tracking-[0.2em] uppercase">Live</span>
-                  </div>
-                </div>
-                <div className="flex flex-col min-w-0 w-full text-left px-2 pb-2">
-                  <span className="text-3xl font-bold text-white truncate mb-1">LLAMA</span>
-                  <span className="text-base text-white/70 font-medium truncate">Ife Mi in the mix</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Action buttons — wider gap on mobile for touch targets */}
-        <AnimatePresence>
-          {isPlaying && (
-            <motion.div key="actions"
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="flex items-center justify-center gap-5 sm:gap-4 dark mb-4 pointer-events-auto z-20"
+        <AnimatePresence mode="wait">
+          {activeTab === 'radio' ? (
+            <motion.div
+              key="radio-view"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex flex-col items-center justify-end min-h-full pb-[max(32px,env(safe-area-inset-bottom,0px))] overflow-y-auto"
             >
-              <MicroExpander icon={<Heart className="w-5 h-5" />} isActive={false} text="Like Track" />
-              <MicroExpander icon={<ListPlus className="w-5 h-5" />} isActive={true} text="Save Set" />
-              <MicroExpander icon={<Share2 className="w-5 h-5" />} isActive={false} text="Share" />
+              <LiveRadioPlayer isPlaying={isPlaying} setIsPlaying={setIsPlaying} language={language} onChatToggle={() => setIsMobileChatOpen(p => !p)} />
+            </motion.div>
+
+          ) : activeTab === 'archive' ? (
+            <motion.div key="archive-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              className="min-h-full overflow-y-auto">
+              <SessionsView />
+            </motion.div>
+
+          ) : activeTab === 'sounds' ? (
+            <motion.div key="sounds-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              className="min-h-full overflow-y-auto">
+              <MusicLibraryView />
+            </motion.div>
+
+          ) : (
+            <motion.div key="collection-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              className="min-h-full overflow-y-auto">
+              <SavedTracksView />
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* ON AIR label + Play Button + Volume — always visible, centered */}
-        <div className="flex flex-col items-center gap-4 mt-2 w-full">
-          <span className="text-white/40 font-mono text-[10px] uppercase tracking-widest pointer-events-none">
-            {isPlaying ? "ON AIR" : "Click here to play"}
-          </span>
-
-          {/* 
-           * Play button strictly center locked: 
-           * We use absolute positioning within a fixed height relative block to mathematically guarantee dead center.
-           */}
-          <div className="relative w-full h-[72px] mb-4 sm:mb-8 pointer-events-none shadow-none border-none">
-            {/* Center: Play Button (Always exact middle) */}
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 rounded-full border border-white/10 shadow-2xl pointer-events-auto flex items-center justify-center hover:border-white/30 cursor-pointer z-10 touch-manipulation ${isMobile ? 'bg-black/80' : 'bg-black/60 backdrop-blur-md'}`}>
-               <MusicToggleButton onPlayChange={setIsPlaying} volume={volume} />
-            </div>
-
-            {/* Right: Chat Button (Pops out to the right of the play button) */}
-            <AnimatePresence>
-              {isPlaying && (
-                <motion.button
-                  key="chat-btn-inline"
-                  initial={{ opacity: 0, scale: 0, x: -20, y: "-50%" }}
-                  animate={{ opacity: 1, scale: 1, x: 0, y: "-50%" }}
-                  exit={{ opacity: 0, scale: 0, x: -20, y: "-50%" }}
-                  transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                  onClick={() => setIsMobileChatOpen(p => !p)}
-                  className="md:hidden absolute top-1/2 left-1/2 ml-12 w-14 h-14 rounded-full flex items-center justify-center cursor-pointer pointer-events-auto z-0 touch-manipulation"
-                  style={{
-                    background: isMobileChatOpen ? "rgba(251,146,60,0.9)" : "rgba(30,30,38,0.85)",
-                    border: "1px solid rgba(251,146,60,0.45)",
-                    color: isMobileChatOpen ? "#fff" : "#fb923c",
-                    backdropFilter: "blur(14px)",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-                  }}
-                  aria-label="Open chat"
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-                  </svg>
-                </motion.button>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Volume — always centered under play button regardless of chat button offset */}
-          <div className="pointer-events-auto mb-4 sm:mb-6 w-56 mx-auto flex items-center justify-center">
-            <MinimalVolumeBar onVolumeChange={setVolume} />
-          </div>
-        </div>
       </div>
 
-      {/* ── Live Chat (Desktop Sidebar + Mobile Sheet) ── */}
-
-      {/* Desktop Sidebar (md and up) */}
+      {/* ── Live Chat Sidebar (Desktop) ── */}
       <AnimatePresence>
-        {isPlaying && (
+        {isPlaying && activeTab === 'radio' && (
           <motion.aside key="chat-desktop"
             initial={{ x: 320, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 320, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
             className="hidden md:flex fixed top-0 right-0 h-full w-80 z-40 flex-col"
             style={{
-              background: "linear-gradient(180deg, rgba(8,8,12,0.92) 0%, rgba(12,12,18,0.96) 100%)",
+              background: "linear-gradient(180deg, rgba(28,22,18,0.97) 0%, rgba(18,14,12,0.98) 100%)",
               backdropFilter: "blur(24px)",
               WebkitBackdropFilter: "blur(24px)",
               borderLeft: "1px solid rgba(255,255,255,0.07)",
@@ -224,13 +288,11 @@ export default function RadioPage() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Sheet */}
+      {/* ── Live Chat Bottom Sheet (Mobile) ── */}
       <AnimatePresence>
         {isPlaying && isMobileChatOpen && (
           <motion.aside key="chat-mobile"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
             className="md:hidden fixed inset-x-0 bottom-0 top-16 z-[70] flex flex-col rounded-t-3xl overflow-hidden"
             style={{
@@ -241,22 +303,13 @@ export default function RadioPage() {
               boxShadow: "0 -10px 40px rgba(0,0,0,0.6)",
             }}
           >
-            {/* Drag handle — tap to close */}
-            <div
-              className="w-full flex justify-center py-3 shrink-0 cursor-pointer active:opacity-70"
-              onClick={() => setIsMobileChatOpen(false)}
-            >
+            <div className="w-full flex justify-center py-3 shrink-0 cursor-pointer active:opacity-70"
+              onClick={() => setIsMobileChatOpen(false)}>
               <div className="w-12 h-1 bg-white/20 rounded-full" />
             </div>
-
             <div className="flex-1 min-h-0 overflow-hidden">
-              <LiveChat
-                visible={true}
-                isLive={isPlaying}
-                onFloatingEmoji={handleFloatingEmoji}
-                onClose={() => setIsMobileChatOpen(false)}
-                isMobile={true}
-              />
+              <LiveChat visible={true} isLive={isPlaying} onFloatingEmoji={handleFloatingEmoji}
+                onClose={() => setIsMobileChatOpen(false)} isMobile={true} />
             </div>
           </motion.aside>
         )}

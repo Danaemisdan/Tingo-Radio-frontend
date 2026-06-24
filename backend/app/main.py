@@ -35,7 +35,7 @@ app = FastAPI(
 # Enable CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.tingoradio.ai", "http://localhost:3000", "https://tingoradio.ai"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "https://www.tingoradio.ai", "https://tingoradio.ai"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,6 +62,57 @@ async def health_check():
 async def radio_status():
     """Returns current automation state so the frontend can gate the Call In button."""
     return get_radio_status()
+
+from fastapi import Form
+from app.services.automation import force_update_radio_state
+
+@app.post("/api/internal/metadata")
+async def internal_metadata(title: str = Form(""), artist: str = Form(""), filename: str = Form("")):
+    """Webhook called by Liquidsoap every time the physical audio track changes."""
+    force_update_radio_state(title, artist, filename)
+    return {"status": "ok"}
+
+import re
+import os as _os
+
+@app.get("/api/songs")
+async def list_songs():
+    """Returns all songs in the music library parsed from filenames."""
+    MUSIC_DIR = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "../../media/music"))
+    songs = []
+    if not _os.path.isdir(MUSIC_DIR):
+        return {"songs": []}
+    
+    # Patterns to strip from YouTube-downloaded filenames
+    STRIP = re.compile(
+        r'\s*[\(\[](official\s*(music\s*video|video|audio|visualizer|lyric\s*video|lyrics)|'
+        r'lyric\s*video|lyrics|visualizer|audio|video)[\)\]]',
+        re.IGNORECASE
+    )
+    
+    for fname in sorted(_os.listdir(MUSIC_DIR)):
+        if not fname.endswith(".mp3"):
+            continue
+        raw = fname[:-4]  # strip .mp3
+        clean = STRIP.sub("", raw).strip()
+        
+        # Parse "Artist - Title" format
+        if " - " in clean:
+            artist, title = clean.split(" - ", 1)
+            artist = artist.strip()
+            title = title.strip()
+        else:
+            artist = "Various Artists"
+            title = clean.strip()
+        
+        songs.append({
+            "filename": fname,
+            "artist": artist,
+            "title": title,
+        })
+    
+    return {"songs": songs}
+
 
 @app.get("/api/stream")
 async def stream_proxy():

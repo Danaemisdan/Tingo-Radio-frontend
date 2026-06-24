@@ -26,11 +26,68 @@ from datetime import datetime
 _radio_state = {
     "is_show_live": False,
     "current_show_name": "",
-    "current_segment": "music"  # "music" | "show" | "ad"
+    "current_segment": "music",  # "music" | "show" | "ad" | "interactive"
+    "now_playing_title": "",
+    "now_playing_artist": "",
+    "now_playing_type": "music", # Same as segment usually, but explicitly typed for the player
 }
+
+_overlap_remaining_seconds = 0
+_overlap_timestamp = 0
+
+def set_delayed_radio_state(title: str, artist: str, type_: str, segment: str):
+    """
+    Updates the frontend's now-playing metadata with a calculated delay.
+    If the automation script pushed a track to Liquidsoap early (overlap debt),
+    this function waits precisely until Liquidsoap actually starts playing it before updating the frontend UI.
+    """
+    global _overlap_remaining_seconds, _overlap_timestamp
+    elapsed = time.time() - _overlap_timestamp if _overlap_timestamp else 0
+    delay = max(0, _overlap_remaining_seconds - elapsed)
+    
+    def _update():
+        if delay > 0:
+            logger.info(f"⏳ Delaying state update for '{title}' by {delay:.1f}s to match Liquidsoap queue...")
+            time.sleep(delay)
+        _radio_state["now_playing_title"] = title
+        _radio_state["now_playing_artist"] = artist
+        _radio_state["now_playing_type"] = type_
+        _radio_state["current_segment"] = segment
+        _radio_state["is_show_live"] = (type_ == "show")
+        logger.info(f"🔄 UI State updated: {title} - {artist}")
+        
+    threading.Thread(target=_update, daemon=True).start()
 
 def get_radio_status() -> dict:
     return _radio_state.copy()
+
+def force_update_radio_state(title: str, artist: str, filename: str):
+    """Called by Liquidsoap webhook to forcefully sync the UI with physical audio stream."""
+    global _radio_state
+    
+    # If filename contains show_segment, intro, or ad, we let automation.py handle it via set_delayed_radio_state.
+    # We only forcefully intervene if it's a song from music_fallback because automation.py doesn't know about those!
+    basename = os.path.basename(filename)
+    if "show_segment" in basename or "intro" in basename or "ad_" in basename or "future_in_a_minute" in basename:
+        return # Handled by delayed sync
+        
+    if basename.endswith(".mp3"):
+        # Parse artist and title from filename if title is missing
+        if not title:
+            clean_name = basename.replace(".mp3", "")
+            if " - " in clean_name:
+                artist, title = clean_name.split(" - ", 1)
+            else:
+                title = clean_name
+                artist = "Unknown Artist"
+        
+        # We know it's music because it's not a generated show segment
+        _radio_state["now_playing_title"] = title
+        _radio_state["now_playing_artist"] = artist
+        _radio_state["now_playing_type"] = "music"
+        _radio_state["current_segment"] = "music"
+        _radio_state["is_show_live"] = False
+        logger.info(f"🔄 Webhook State Sync (Fallback Detected!): {title} - {artist}")
 
 SHOWS_JSON_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../shows.json"))
 
@@ -111,6 +168,9 @@ def push_to_liquidsoap_sync(file_path: str, queue_name: str = "show_api"):
 
 def skip_liquidsoap_track():
     """Flushes BOTH queues so music and shows stop instantly on caller interrupt."""
+    global _overlap_remaining_seconds, _overlap_timestamp
+    _overlap_remaining_seconds = 0
+    _overlap_timestamp = time.time()
     try:
         # Skip whatever is currently playing in the show queue
         subprocess.run(["nc", "-w", "1", "127.0.0.1", "1234"], input=b"show_api.skip\n", capture_output=True)
@@ -129,6 +189,7 @@ def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str =
     Waits (duration - 40)s so the next generator starts 40s before this track ends.
     Used for show segments so generation of the next one overlaps with the tail of this one.
     """
+    global _overlap_remaining_seconds, _overlap_timestamp
     wait_time = max(1, duration - 40)
     logger.info(f"⏱  Waiting {wait_time:.0f}s for '{label}'... (-40s pre-buffer overlap)")
     for _ in range(int(wait_time)):
@@ -140,12 +201,16 @@ def _wait_for_overlap(duration: float, stop_event: threading.Event, label: str =
         if interaction:
             raise CallerInterruptedException(interaction)
         time.sleep(1)
+        
+    _overlap_remaining_seconds = 40
+    _overlap_timestamp = time.time()
 
 def _wait_full(duration: float, stop_event: threading.Event, label: str = ""):
     """
     Waits the FULL track duration (minus 3s crossfade buffer).
     Used for songs so they always play completely before the next segment starts.
     """
+    global _overlap_remaining_seconds, _overlap_timestamp
     wait_time = max(1, duration - 3)
     logger.info(f"⏱  Song wait: {wait_time:.0f}s for '{label}' (plays to end)")
     for _ in range(int(wait_time)):
@@ -158,6 +223,27 @@ def _wait_full(duration: float, stop_event: threading.Event, label: str = ""):
         if interaction:
             raise CallerInterruptedException(interaction)
         time.sleep(1)
+        
+    _overlap_remaining_seconds = 3
+    _overlap_timestamp = time.time()
+def safe_delete_audio(file_path: str, delay: int = 60):
+    """
+    Schedules deletion of an audio file after a safe delay.
+    Ensures Liquidsoap has fully released the file before deleting it.
+    """
+    if not file_path or "media/music" in file_path:
+        return # Never delete the core music library!
+
+    def _delete():
+        time.sleep(delay)
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.info(f"🗑️ Cleaned up played audio: {os.path.basename(file_path)}")
+        except Exception as e:
+            logger.error(f"Failed to clean up {file_path}: {e}")
+
+    threading.Thread(target=_delete, daemon=True).start()
 
 from pydub import AudioSegment
 from app.api.interactive import get_next_audience_interaction
@@ -243,8 +329,6 @@ def _automation_loop_sync(stop_event: threading.Event):
             _radio_state["is_show_live"] = True
             _radio_state["current_segment"] = "music"
             
-            # (Interactions are now polled purely inside `_wait_for_overlap` so we don't accidentally check twice and duplicate)
-            
             # ── 1. SONG BLOCK ─────────────────────────────────────────
             # Man vs Machine is purely a talk/caller show — zero music interruptions
             songs_limit = 0 if "Man vs Machine" in sname else SONGS_PER_SHOW
@@ -257,6 +341,19 @@ def _automation_loop_sync(stop_event: threading.Event):
                     song_name = os.path.basename(song_path).replace(".mp3", "")
                     logger.info(f"▶ Queuing Song: {song_name}")
                     
+                    # Parse artist and title from song_name (e.g., "Artist - Title.mp3" or "Artist - Title")
+                    clean_name = song_name.replace(".mp3", "")
+                    if " - " in clean_name:
+                        artist, title = clean_name.split(" - ", 1)
+                    else:
+                        artist = "Unknown Artist"
+                        title = clean_name
+                    
+                    _radio_state["now_playing_title"] = title
+                    _radio_state["now_playing_artist"] = artist
+                    _radio_state["now_playing_type"] = "music"
+                    set_delayed_radio_state(title, artist, "music", "music")
+                    
                     # Generate natural intro for the song
                     intro_prompt = f"Write a very quick, extremely natural 10-second intro for the track '{song_name}'. Ignore any 'Official Video' or 'Lyric Video' tags in the name, just say the artist and song naturally. {host1} and {host2} should just vibe for a few seconds before throwing to the track. KEEP IT SHORT."
                     output_name = f"intro_{int(time.time())}.mp3"
@@ -267,6 +364,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                         intro_dur = get_audio_duration(intro_path)
                         # Intro is short (~10-15s) — wait the full duration
                         _wait_full(intro_dur, stop_event, f"intro for {song_name}")
+                        safe_delete_audio(intro_path)
 
                     # Push song and wait for it to play to completion.
                     push_to_liquidsoap_sync(song_path)
@@ -282,9 +380,8 @@ def _automation_loop_sync(stop_event: threading.Event):
 
             # ── 2. SHOW BLOCK (10+ minutes) ─────────────────────────────────────
             # Generate 3-minute segments back-to-back until we've queued 11 minutes.
-            _radio_state["is_show_live"] = True
-            _radio_state["current_show_name"] = sname
             _radio_state["current_segment"] = "show"
+            set_delayed_radio_state(f"{sname} Live", f"{host1} & {host2}", "show", "show")
 
             topics = current_show.get("topics", ["Insane energy in Africa right now!"])
             if sname not in _used_topics or len(_used_topics[sname]) >= len(topics):
@@ -351,9 +448,11 @@ def _automation_loop_sync(stop_event: threading.Event):
                         _wait_for_overlap(seg_dur, stop_event, f"show segment {segment_index}")
                     else:
                         # Last segment — wait full duration so songs don't overlap with show
-                        full_wait = max(1, seg_dur - 5)
+                        # Using _wait_full fixes the major bug where the queue races ahead of Liquidsoap!
                         logger.info(f"⏳ Show block complete ({show_block_queued_seconds:.0f}s). Waiting for last segment...")
-                        _wait_for_overlap(full_wait, stop_event, f"show block final segment")
+                        _wait_full(seg_dur, stop_event, f"show block final segment")
+                        
+                    safe_delete_audio(ai_audio_path)
 
             # ── 2.5. THE FUTURE IN A MINUTE ───────────────────────────
             # Airs once at each daypart boundary (9h, 12h, 14h, 17h, 20h, 23h WAT).
@@ -362,14 +461,15 @@ def _automation_loop_sync(stop_event: threading.Event):
                 from .future_in_a_minute import should_air_now, generate_future_in_a_minute_sync
                 if should_air_now():
                     logger.info("🔮 Daypart boundary — generating 'The Future In A Minute'...")
-                    _radio_state["current_segment"] = "feature"
+                    set_delayed_radio_state(f"{sname} Segment", f"{host1} & {host2}", "show", "show")
+                    
                     fim_path = generate_future_in_a_minute_sync()
                     if fim_path:
                         push_to_liquidsoap_sync(fim_path)
                         fim_dur = get_audio_duration(fim_path)
                         logger.info(f"▶ 'The Future In A Minute' on air ({fim_dur:.0f}s)")
-                        _wait_for_overlap(fim_dur, stop_event, "Future In A Minute")
-                    _radio_state["current_segment"] = "show"
+                        _wait_full(fim_dur, stop_event, "Future In A Minute")
+                        safe_delete_audio(fim_path)
             except Exception as fim_err:
                 logger.error(f"'The Future In A Minute' failed — skipping: {fim_err}")
 
@@ -377,24 +477,32 @@ def _automation_loop_sync(stop_event: threading.Event):
             shows_since_last_ad += 1
             if shows_since_last_ad >= SHOWS_PER_AD:
                 shows_since_last_ad = 0
-                ad = get_next_ad()
-                if ad:
-                    logger.info(f"[Ad] {ad['brand']}")
-                    push_to_liquidsoap_sync(ad["path"])
-                    _wait_for_overlap(get_audio_duration(ad["path"]), stop_event, f"ad: {ad['brand']}")
+                ad_data = get_next_ad()
+                if ad_data:
+                    logger.info(f"[Ad] {ad_data['brand']}")
+                    
+                    set_delayed_radio_state("Sponsored Message", ad_data.get('brand', 'Advertiser'), "ad", "ad")
+                    
+                    push_to_liquidsoap_sync(ad_data["path"])
+                    _wait_full(get_audio_duration(ad_data["path"]), stop_event, f"ad: {ad_data['brand']}")
                 else:
                     all_ads = load_ads()
                     if all_ads:
+                        set_delayed_radio_state("Sponsored Message", all_ads[0].get('brand', 'Advertiser'), "ad", "ad")
                         ad_path = generate_ad_sync(all_ads[0])
                         if ad_path:
                             push_to_liquidsoap_sync(ad_path)
-                            _wait_for_overlap(get_audio_duration(ad_path), stop_event, "generated ad")
+                            _wait_full(get_audio_duration(ad_path), stop_event, "generated ad")
+                            safe_delete_audio(ad_path)
 
         except CallerInterruptedException as e:
             logger.info("🚨 LIVE CALLER DETECTED! Intercepting flow...")
             _radio_state["is_show_live"] = True
             _radio_state["current_segment"] = "interactive"
             _radio_state["end_call_requested"] = False  # Reset flag on every new call
+            _radio_state["now_playing_title"] = "Live Caller on Air"
+            _radio_state["now_playing_artist"] = f"{host1} & {host2}"
+            _radio_state["now_playing_type"] = "interactive"
 
             # STEP 1: Kill everything currently playing immediately
             skip_liquidsoap_track()
@@ -429,6 +537,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                     audio.export(caller_wav_path, format="wav")
                     logger.info("Broadcasting raw caller voice!")
                     push_to_liquidsoap_sync(caller_wav_path, queue_name="interactive_api")
+                    safe_delete_audio(caller_wav_path)
                 except Exception as ex:
                     logger.error(f"Failed to prep caller audio for broadcast: {ex}")
 
@@ -451,6 +560,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                     resp_dur = get_audio_duration(ai_audio_path)
                     logger.info(f"✅ AI response on air! Duration: {resp_dur:.1f}s")
                     time.sleep(max(0, resp_dur - 2))
+                    safe_delete_audio(ai_audio_path)
                     # FLUSH OFF STALE CHUNKS HERE to prevent transcription backlog latency
                     import app.api.interactive as int_api
                     if "calls" in int_api.audience_queue:
@@ -471,6 +581,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                     if fp and os.path.exists(fp):
                         push_to_liquidsoap_sync(fp, queue_name="interactive_api")
                         time.sleep(max(0, get_audio_duration(fp) - 1))
+                        safe_delete_audio(fp)
                 except Exception as ex:
                     logger.error(f"Auto-farewell failed: {ex}")
 
@@ -528,6 +639,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                         wav = raw_path + "_broadcast.wav"
                         audio.export(wav, format="wav")
                         push_to_liquidsoap_sync(wav, queue_name="interactive_api")
+                        safe_delete_audio(wav)
                     except Exception:
                         pass
 
@@ -545,6 +657,7 @@ def _automation_loop_sync(stop_event: threading.Event):
                             push_to_liquidsoap_sync(reply_path, queue_name="interactive_api")
                             dur = get_audio_duration(reply_path)
                             time.sleep(max(0, dur - 2))
+                            safe_delete_audio(reply_path)
                             # FLUSH OFF STALE CHUNKS
                             import app.api.interactive as int_api
                             if "calls" in int_api.audience_queue:

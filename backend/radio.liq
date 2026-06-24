@@ -32,7 +32,7 @@ music_fallback = playlist(
 # show_api content kicks in. This ensures songs are never cut mid-play.
 regular_radio = fallback(
   track_sensitive=true,
-  [show_api, music_fallback, blank()]
+  [show_api, music_fallback]
 )
 
 # Apply crossfade AFTER the fallback so Liquidsoap can still detect track boundaries!
@@ -50,6 +50,18 @@ radio_stream = fallback(
   [interactive_api, crossed_radio, blank()]
 )
 
+# --- Webhook Sync ---
+# Ensure the backend accurately tracks fallback events.
+def on_track_change(m) =
+  # We use url.encode to escape titles/artists/filenames safely for the curl command
+  let title = url.encode(m["title"])
+  let artist = url.encode(m["artist"])
+  let filename = url.encode(m["filename"])
+  system("curl -s -X POST http://127.0.0.1:8080/api/internal/metadata -d 'title=" ^ title ^ "&artist=" ^ artist ^ "&filename=" ^ filename ^ "' >/dev/null 2>&1 &")
+end
+
+radio_stream_synced = on_metadata(on_track_change, radio_stream)
+
 # --- Icecast Output ---
 output.icecast(
   %mp3(bitrate=320),
@@ -57,6 +69,6 @@ output.icecast(
   password="hackme", mount="stream",
   name="Tingo AI Radio Live",
   description="24/7 Autonomous AI Broadcaster",
-  radio_stream
+  radio_stream_synced
 )
 

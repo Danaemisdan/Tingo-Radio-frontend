@@ -257,7 +257,7 @@ FASTAPI_READY=0
 j=1
 while [ "$j" -le 72 ]; do
     sleep 5
-    if curl -sf --max-time 3 http://localhost:8080/health > /dev/null 2>&1; then
+    if curl -sf --max-time 30 http://localhost:8080/health > /dev/null 2>&1; then
         echo ""
         echo "   ✅ FastAPI is up and healthy!"
         FASTAPI_READY=1
