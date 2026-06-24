@@ -431,26 +431,27 @@ export const SplashHero = ({ onTuneIn }: { onTuneIn: () => void }) => {
     return () => clearTimeout(timer);
   }, [onTuneIn]);
 
-  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    setIsMobile(navigator.maxTouchPoints > 0 || window.innerWidth < 768);
-  }, []);
+    const timer = setTimeout(() => {
+      onTuneIn();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [onTuneIn]);
 
   useEffect(() => {
-    if (isMobile) return;
     const cleanup = initCanvas();
     return cleanup;
-  }, [initCanvas, isMobile]);
+  }, [initCanvas]);
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-transparent overflow-hidden flex flex-col items-center justify-center font-sans">
-      {!isMobile && <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />}
+    <div className="relative w-full h-full min-h-screen bg-[#050505] overflow-hidden flex flex-col items-center justify-center font-sans">
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 max-w-3xl space-y-8">
         
         {/* Tingo Logo */}
         <div className="mb-4">
-          <img src="/tingo_logo_minimal.svg" alt="Tingo AI Radio" className="h-24 md:h-32 w-auto mx-auto drop-shadow-[0_0_15px_rgba(255,107,53,0.5)]" />
+          <img src="/tingo_logo_minimal.svg" alt="Tingo AI Radio" className="h-32 md:h-48 lg:h-56 w-auto mx-auto drop-shadow-[0_0_15px_rgba(255,107,53,0.5)]" />
         </div>
         
         <h1 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-white/40 tracking-tighter uppercase drop-shadow-lg">
