@@ -58,49 +58,21 @@ export function SessionsView() {
         </div>
       </motion.div>
 
-      {/* Coming soon notice */}
+      {/* Empty State / Coming Soon */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="mb-8 px-4 py-3 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs"
+        className="flex flex-col items-center justify-center py-24 text-center px-4 rounded-3xl bg-white/[0.02] border border-white/[0.05]"
       >
-        🎙️ &nbsp;Full session recordings will auto-populate here once recorded shows are enabled in the backend.
-        These previews are illustrative.
+        <div className="w-16 h-16 rounded-full bg-white/[0.05] flex items-center justify-center mb-6">
+          <Clock className="w-8 h-8 text-white/20" />
+        </div>
+        <h3 className="text-xl font-semibold text-white/80 mb-2">The Archive is Empty</h3>
+        <p className="text-white/40 max-w-sm leading-relaxed text-sm">
+          No past sessions have been recorded yet. Once the AI hosts finish a live broadcast, it will automatically be saved and preserved here for playback.
+        </p>
       </motion.div>
-
-      <div className="flex flex-col gap-4">
-        {MOCK_SESSIONS.map((session, i) => (
-          <motion.div
-            key={session.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.07 }}
-            className="group flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.04] hover:border-white/[0.12] transition-all cursor-pointer"
-          >
-            {/* Gradient tile */}
-            <div className={`relative w-16 h-16 rounded-xl shrink-0 bg-gradient-to-br ${session.gradient} flex items-center justify-center shadow-lg`}>
-              <Radio className="w-7 h-7 text-white/80" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="text-white/40 text-xs font-medium uppercase tracking-widest mb-0.5">{session.showName}</p>
-              <h3 className="text-white font-semibold text-sm leading-snug line-clamp-2 group-hover:text-white/90 transition-colors">
-                {session.episode}
-              </h3>
-              <div className="flex items-center gap-3 mt-1.5">
-                <span className="text-white/35 text-xs">{session.hosts}</span>
-                <span className="w-1 h-1 rounded-full bg-white/20" />
-                <span className="flex items-center gap-1 text-white/35 text-xs">
-                  <Clock className="w-3 h-3" /> {session.duration}
-                </span>
-                <span className="w-1 h-1 rounded-full bg-white/20" />
-                <span className="text-white/35 text-xs">{session.date}</span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
     </div>
   );
 }

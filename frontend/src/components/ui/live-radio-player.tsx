@@ -276,6 +276,19 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
 
       {/* Player Controls (Always visible block) */}
       <div className="flex flex-col items-center gap-4 w-full">
+        <AnimatePresence>
+          {!isPlaying && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="text-white/40 text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase mb-1 animate-pulse pointer-events-none"
+            >
+              Tap to tune in
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Play Button Row */}
         <div className="w-full flex items-center justify-center gap-6 sm:gap-8 mb-2 pointer-events-auto">
           {/* Left spacer to keep play button perfectly centered on mobile (MicroExpander is 56px wide) */}
