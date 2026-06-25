@@ -37,10 +37,10 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
     if (audioRef.current) {
       if (isPlaying) {
         // Read env vars inside useEffect (client-only) — safe from hydration issues
-        const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL || "http://localhost:8000";
+        const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-        if (streamUrl) {
+        if (streamUrl && streamUrl.trim() !== "") {
           // Dedicated Icecast stream tunnel (user-configured)
           audioRef.current.src = `${streamUrl}/stream?t=${Date.now()}`;
         } else {
@@ -84,9 +84,16 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
     const handleSync = () => {
       if (audioRef.current && isPlaying) {
         // Fast-forward cache explicitly to hear AI without the 5s Icecast queue delay
-        const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL || "http://localhost:8000";
+        const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        audioRef.current.src = streamUrl ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
+
+        if (streamUrl && streamUrl.trim() !== "") {
+          // Dedicated Icecast stream tunnel (user-configured)
+          audioRef.current.src = `${streamUrl}/stream?t=${Date.now()}`;
+        } else {
+          // Fallback: FastAPI /api/stream proxy (works with just one CF URL)
+          audioRef.current.src = `${apiBase}/api/stream?t=${Date.now()}`;
+        }
         audioRef.current.load();
         audioRef.current.play().catch(() => {});
       }
@@ -105,9 +112,9 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
           // Call ended, resume the main broadcast
           audioRef.current.volume = Math.max(0, Math.min(1, (volume ?? 50) / 100));
           if (isPlaying) {
-            const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL || "http://localhost:8000";
+            const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
             const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-            audioRef.current.src = streamUrl ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
+            audioRef.current.src = (streamUrl && streamUrl.trim() !== "") ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
             audioRef.current.load();
             audioRef.current.play().catch(() => {});
           }

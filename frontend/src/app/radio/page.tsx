@@ -238,8 +238,8 @@ export default function RadioPage() {
       >
         {/* PERSISTENT RADIO VIEW - Never unmounted so audio doesn't stop */}
         <div
-          className={`absolute inset-0 w-full h-full flex flex-col items-center justify-end pb-[max(32px,env(safe-area-inset-bottom,0px))] overflow-y-auto transition-opacity duration-300 ${
-            activeTab === 'radio' ? 'opacity-100 pointer-events-auto z-10' : 'opacity-0 pointer-events-none z-[-1]'
+          className={`flex flex-col items-center justify-end min-h-full pb-[max(32px,env(safe-area-inset-bottom,0px))] overflow-y-auto transition-opacity duration-300 ${
+            activeTab === 'radio' ? 'flex opacity-100 pointer-events-auto z-10' : 'hidden opacity-0 pointer-events-none z-[-1]'
           }`}
         >
           <LiveRadioPlayer isPlaying={isPlaying} setIsPlaying={setIsPlaying} language={language} onChatToggle={() => setIsMobileChatOpen(p => !p)} />
@@ -248,21 +248,21 @@ export default function RadioPage() {
         <AnimatePresence mode="wait">
           {activeTab === 'archive' && (
             <motion.div key="archive-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-              className="absolute inset-0 h-full overflow-y-auto z-20 bg-black/50 backdrop-blur-sm">
+              className="min-h-full overflow-y-auto">
               <SessionsView />
             </motion.div>
           )}
 
           {activeTab === 'sounds' && (
             <motion.div key="sounds-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-              className="absolute inset-0 h-full overflow-y-auto z-20 bg-black/50 backdrop-blur-sm">
+              className="min-h-full overflow-y-auto">
               <MusicLibraryView />
             </motion.div>
           )}
 
           {activeTab === 'collection' && (
             <motion.div key="collection-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-              className="absolute inset-0 h-full overflow-y-auto z-20 bg-black/50 backdrop-blur-sm">
+              className="min-h-full overflow-y-auto">
               <SavedTracksView />
             </motion.div>
           )}
