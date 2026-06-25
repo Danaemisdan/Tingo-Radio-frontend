@@ -74,7 +74,6 @@ export function SessionsView() {
       {loading ? (
         <div className="flex justify-center py-12"><div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" /></div>
       ) : archives.length === 0 ? (
-        {/* Empty State / Coming Soon */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
