@@ -53,14 +53,13 @@ radio_stream = fallback(
 # --- Webhook Sync ---
 # Ensure the backend accurately tracks fallback events.
 def on_track_change(m) =
-  # We use url.encode to escape titles/artists/filenames safely for the curl command
   let title = url.encode(m["title"])
   let artist = url.encode(m["artist"])
   let filename = url.encode(m["filename"])
-  system("curl -s -X POST http://127.0.0.1:8080/api/internal/metadata -d 'title=" ^ title ^ "&artist=" ^ artist ^ "&filename=" ^ filename ^ "' >/dev/null 2>&1 &")
+  ignore(system("curl -s -X POST http://127.0.0.1:8080/api/internal/metadata -d 'title=" ^ title ^ "&artist=" ^ artist ^ "&filename=" ^ filename ^ "' >/dev/null 2>&1 &"))
 end
 
-radio_stream_synced = on_metadata(on_track_change, radio_stream)
+radio_stream_synced = radio_stream.on_metadata(on_track_change)
 
 # --- Archiving ---
 # Save the live stream directly to disk chunked by hour
