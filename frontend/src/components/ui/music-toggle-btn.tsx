@@ -40,7 +40,7 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
         const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-        if (streamUrl && streamUrl.trim() !== "") {
+        if (streamUrl && streamUrl.trim().startsWith("http")) {
           // Dedicated Icecast stream tunnel (user-configured)
           audioRef.current.src = `${streamUrl}/stream?t=${Date.now()}`;
         } else {
@@ -87,7 +87,7 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
         const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-        if (streamUrl && streamUrl.trim() !== "") {
+        if (streamUrl && streamUrl.trim().startsWith("http")) {
           // Dedicated Icecast stream tunnel (user-configured)
           audioRef.current.src = `${streamUrl}/stream?t=${Date.now()}`;
         } else {
@@ -114,7 +114,7 @@ export const MusicToggleButton = ({ onPlayChange, volume }: { onPlayChange?: (pl
           if (isPlaying) {
             const streamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
             const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-            audioRef.current.src = (streamUrl && streamUrl.trim() !== "") ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
+            audioRef.current.src = (streamUrl && streamUrl.trim().startsWith("http")) ? `${streamUrl}/stream?t=${Date.now()}` : `${apiBase}/api/stream?t=${Date.now()}`;
             audioRef.current.load();
             audioRef.current.play().catch(() => {});
           }
