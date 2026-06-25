@@ -50,16 +50,8 @@ radio_stream = fallback(
   [interactive_api, crossed_radio, blank()]
 )
 
-# --- Webhook Sync ---
-# Ensure the backend accurately tracks fallback events.
-def on_track_change(m) =
-  let title = url.encode(m["title"])
-  let artist = url.encode(m["artist"])
-  let filename = url.encode(m["filename"])
-  ignore(system("curl -s -X POST http://127.0.0.1:8080/api/internal/metadata -d 'title=" ^ title ^ "&artist=" ^ artist ^ "&filename=" ^ filename ^ "' >/dev/null 2>&1 &"))
-end
-
-radio_stream_synced = radio_stream.on_metadata(on_track_change)
+# Bypass on_metadata for now to fix Liquidsoap crash
+radio_stream_synced = radio_stream
 
 # --- Archiving ---
 # Save the live stream directly to disk chunked by hour
