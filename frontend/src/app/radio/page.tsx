@@ -53,11 +53,13 @@ export default function RadioPage() {
   const [activeTab, setActiveTab] = useState<Tab>('radio');
   const [language, setLanguage] = useState('en');
   const [langOpen, setLangOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(true); // Default to mobile to prevent heavy GPU hydration
+  const [mounted, setMounted] = useState(false);
 
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
 
   useEffect(() => {
+    setMounted(true);
     setIsMobile(navigator.maxTouchPoints > 0 || window.innerWidth < 768);
   }, []);
 
@@ -207,7 +209,7 @@ export default function RadioPage() {
       </AnimatePresence>
 
       {/* Wave background (Disabled on mobile to prevent Android WebGL crash) */}
-      {!isMobile && (
+      {mounted && !isMobile && (
         <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
           <HeroWave />
         </div>
@@ -215,7 +217,7 @@ export default function RadioPage() {
 
       {/* Aurora when playing (Disabled on mobile to prevent OOM blur crashes) */}
       <AnimatePresence>
-        {isPlaying && !isMobile && (
+        {mounted && isPlaying && !isMobile && (
           <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
             <motion.div
