@@ -198,8 +198,8 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
   }, [isPlaying]);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[90vw] sm:max-w-lg mx-auto relative z-30">
-      <div className="w-full bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 sm:p-8 flex flex-col items-center shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+    <div className="flex flex-col items-center w-full h-full sm:max-w-lg mx-auto relative z-30 justify-between sm:justify-center">
+      <div className="w-full h-full sm:h-auto sm:bg-black/40 sm:backdrop-blur-3xl sm:border sm:border-white/10 sm:rounded-[2.5rem] px-4 py-8 sm:p-8 flex flex-col items-center justify-between sm:justify-center sm:shadow-[0_0_50px_rgba(0,0,0,0.5)]">
       
       {/* Artwork Section */}
       <AnimatePresence>
@@ -209,9 +209,9 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="w-full flex justify-center mb-8 pointer-events-auto"
+            className="w-full flex-1 flex flex-col justify-center items-center mb-6 sm:mb-8 pointer-events-auto min-h-[300px]"
           >
-            <div className={isMobile ? "scale-90" : "scale-100"}>
+            <div className={isMobile ? "scale-100 sm:scale-100" : "scale-100"}>
               <MusicArtwork 
                 artist={nowPlaying.artist} 
                 music={nowPlaying.title} 
@@ -275,14 +275,14 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
       </AnimatePresence>
 
       {/* Player Controls (Always visible block) */}
-      <div className="flex flex-col items-center gap-4 w-full">
+      <div className="flex flex-col items-center gap-4 w-full sm:mt-0 mt-auto shrink-0 pb-4 sm:pb-0">
         <AnimatePresence>
           {!isPlaying && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="text-white/40 text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase mb-1 animate-pulse pointer-events-none"
+              className="text-white/40 text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase mb-1 animate-pulse pointer-events-none mt-12 sm:mt-0"
             >
               Tap to tune in
             </motion.div>
@@ -294,7 +294,7 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
           {/* Left spacer to keep play button perfectly centered on mobile (MicroExpander is 56px wide) */}
           <div className="w-[56px] h-[56px] md:hidden flex-shrink-0" />
           
-          <div className="p-2 rounded-full border border-white/10 shadow-2xl flex items-center justify-center hover:border-white/30 cursor-pointer z-10 transition-colors bg-black/60 backdrop-blur-md">
+          <div className="p-2 rounded-full border border-white/10 shadow-2xl flex items-center justify-center hover:border-white/30 cursor-pointer z-10 transition-colors bg-white/5 sm:bg-black/60 sm:backdrop-blur-md">
              <MusicToggleButton onPlayChange={setIsPlaying} volume={volume} />
           </div>
 
@@ -305,7 +305,7 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
         </div>
 
         {/* Volume Bar */}
-        <div className="pointer-events-auto w-56 flex items-center justify-center mb-4">
+        <div className="pointer-events-auto w-56 flex items-center justify-center mb-0 sm:mb-4">
           <MinimalVolumeBar onVolumeChange={setVolume} />
         </div>
       </div>

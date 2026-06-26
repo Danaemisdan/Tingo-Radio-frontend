@@ -322,9 +322,7 @@ export default function RadioPage() {
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
             className="md:hidden fixed inset-x-0 bottom-0 top-16 z-[70] flex flex-col rounded-t-3xl overflow-hidden"
             style={{
-              background: "linear-gradient(180deg, rgba(12,12,18,0.97) 0%, rgba(5,5,10,0.99) 100%)",
-              backdropFilter: "blur(30px)",
-              WebkitBackdropFilter: "blur(30px)",
+              background: "linear-gradient(180deg, rgba(12,12,18,1) 0%, rgba(5,5,10,1) 100%)",
               borderTop: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -10px 40px rgba(0,0,0,0.6)",
             }}
