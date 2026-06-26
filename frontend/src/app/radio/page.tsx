@@ -6,7 +6,6 @@ import { Heart, Share2, ListPlus } from 'lucide-react';
 import { MicroExpander } from '@/components/ui/micro-expander';
 import { MusicToggleButton } from '@/components/ui/music-toggle-btn';
 import { AnimatePresence, motion } from 'framer-motion';
-import Image from 'next/image';
 import { MinimalVolumeBar } from '@/components/ui/minimal-volume-bar';
 import { LiveChat, FloatingEmojiOverlay, SuperChatOverlay, FloatingEmoji } from '@/components/ui/live-chat';
 import { SplashHero } from '@/components/ui/music-reactive-hero-section';
@@ -14,6 +13,7 @@ import { LiveRadioPlayer } from '@/components/ui/live-radio-player';
 import { SavedTracksView } from '@/components/ui/saved-tracks';
 import { MusicLibraryView } from '@/components/ui/music-library';
 import { SessionsView } from '@/components/ui/sessions-view';
+import { Show, SignIn, UserButton } from '@clerk/nextjs';
 
 type Tab = 'radio' | 'archive' | 'sounds' | 'collection';
 
@@ -86,7 +86,7 @@ export default function RadioPage() {
           >
             {/* Logo — left (fixed width so center stays true on desktop) */}
             <div className="shrink-0 w-8 sm:w-32 flex items-center">
-              <Image src="/tingo_logo_minimal.svg" alt="Tingo" width={120} height={48} className="block cursor-pointer w-auto h-6 sm:h-12" />
+              <motion.img layoutId="tingo-logo" src="/tingo_logo_minimal.svg" alt="Tingo" className="block cursor-pointer w-auto h-6 sm:h-12" />
             </div>
 
             {/* Tabs — true center via flex-1 + justify-center */}
@@ -113,8 +113,8 @@ export default function RadioPage() {
               </div>
             </div>
 
-            {/* Language — right */}
-            <div className="shrink-0 w-auto sm:w-32 flex justify-end pointer-events-auto">
+            {/* Language & User Controls — right */}
+            <div className="shrink-0 w-auto sm:w-48 flex justify-end items-center gap-3 pointer-events-auto">
               <div className="relative">
                 <button
                   onClick={() => setLangOpen(o => !o)}
@@ -177,6 +177,12 @@ export default function RadioPage() {
                   )}
                 </AnimatePresence>
               </div>
+              
+              <Show when="signed-in">
+                <div className="bg-white/5 border border-white/10 rounded-full flex items-center justify-center p-0.5">
+                  <UserButton appearance={{ elements: { userButtonAvatarBox: "w-8 h-8" } }} />
+                </div>
+              </Show>
             </div>
           </motion.nav>
         )}
@@ -191,7 +197,7 @@ export default function RadioPage() {
         {!hasTunedIn && (
           <motion.div
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -50 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
             className="absolute inset-0 z-[100]"
           >
@@ -222,28 +228,39 @@ export default function RadioPage() {
         )}
       </AnimatePresence>
 
-      {/* Floating Emoji Overlay */}
-      <FloatingEmojiOverlay emojis={floatingEmojis} />
+      <Show when="signed-out">
+        {hasTunedIn && (
+          <div className="absolute inset-0 z-[80] flex items-center justify-center pt-16 bg-black/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <SignIn routing="hash" appearance={{ elements: { formButtonPrimary: "bg-[#FF6B35] hover:bg-[#ff8052]" } }} />
+            </motion.div>
+          </div>
+        )}
+      </Show>
 
-      {/* Super Chat Banner */}
-      <SuperChatOverlay messages={superChats} />
+      <Show when="signed-in">
+        {/* Floating Emoji Overlay */}
+        <FloatingEmojiOverlay emojis={floatingEmojis} />
 
-      {/* ── Main Content Area ── */}
-      <div
-        className={[
-          "absolute inset-0 z-30 pt-20",
-          isPlaying && activeTab === 'radio' ? "md:pr-[320px]" : "",
-          "transition-all duration-500",
-        ].join(" ")}
-      >
-        {/* PERSISTENT RADIO VIEW - Never unmounted so audio doesn't stop */}
+        {/* Super Chat Banner */}
+        <SuperChatOverlay messages={superChats} />
+
+        {/* ── Main Content Area ── */}
         <div
-          className={`flex flex-col items-center justify-end min-h-full pb-[max(32px,env(safe-area-inset-bottom,0px))] overflow-y-auto transition-opacity duration-300 ${
-            activeTab === 'radio' ? 'flex opacity-100 pointer-events-auto z-10' : 'hidden opacity-0 pointer-events-none z-[-1]'
-          }`}
+          className={[
+            "absolute inset-0 z-30 pt-20",
+            isPlaying && activeTab === 'radio' ? "md:pr-[320px]" : "",
+            "transition-all duration-500",
+          ].join(" ")}
         >
-          <LiveRadioPlayer isPlaying={isPlaying} setIsPlaying={setIsPlaying} language={language} onChatToggle={() => setIsMobileChatOpen(p => !p)} />
-        </div>
+          {/* PERSISTENT RADIO VIEW - Never unmounted so audio doesn't stop */}
+          <div
+            className={`flex flex-col items-center justify-end min-h-full pb-[max(32px,env(safe-area-inset-bottom,0px))] overflow-y-auto transition-opacity duration-300 ${
+              activeTab === 'radio' ? 'flex opacity-100 pointer-events-auto z-10' : 'hidden opacity-0 pointer-events-none z-[-1]'
+            }`}
+          >
+            <LiveRadioPlayer isPlaying={isPlaying} setIsPlaying={setIsPlaying} language={language} onChatToggle={() => setIsMobileChatOpen(p => !p)} />
+          </div>
 
         <AnimatePresence mode="wait">
           {activeTab === 'archive' && (
@@ -314,6 +331,7 @@ export default function RadioPage() {
           </motion.aside>
         )}
       </AnimatePresence>
+      </Show>
 
     </main>
   );

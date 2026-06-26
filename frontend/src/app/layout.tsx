@@ -27,6 +27,8 @@ export const viewport = {
   themeColor: "#000000",
 };
 
+import { ClerkProvider } from '@clerk/nextjs';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,7 +39,9 @@ export default function RootLayout({
       <body
         className={`${fontSans.variable} ${fontMono.variable} antialiased bg-black text-white selection:bg-white/30 selection:text-white`}
       >
-        {children}
+        <ClerkProvider>
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );
