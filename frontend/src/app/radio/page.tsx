@@ -234,7 +234,7 @@ export default function RadioPage() {
         {hasTunedIn && (
           <div className="absolute inset-0 z-[80] flex items-center justify-center pt-16 bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <SignIn routing="hash" appearance={{ elements: { formButtonPrimary: "bg-[#FF6B35] hover:bg-[#ff8052]" } }} />
+              <SignIn routing="hash" forceRedirectUrl="/radio" signUpForceRedirectUrl="/radio" appearance={{ elements: { formButtonPrimary: "bg-[#FF6B35] hover:bg-[#ff8052]" } }} />
             </motion.div>
           </div>
         )}
