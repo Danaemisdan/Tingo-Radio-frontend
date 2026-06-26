@@ -78,7 +78,7 @@ export default function RadioPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className={[
-              "fixed top-0 inset-x-0 z-[60] h-16 sm:h-20 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 transition-[padding] duration-500",
+              "fixed top-0 inset-x-0 z-[60] h-[calc(4rem+env(safe-area-inset-top))] sm:h-[calc(5rem+env(safe-area-inset-top))] flex items-center pt-[env(safe-area-inset-top)] px-3 sm:px-6 gap-2 sm:gap-4 transition-[padding] duration-500",
               // Shift nav content left when the chat sidebar is visible on desktop
               isPlaying && activeTab === 'radio' ? "md:pr-[344px]" : "",
             ].join(" ")}
@@ -179,7 +179,7 @@ export default function RadioPage() {
               </div>
               
               <Show when="signed-in">
-                <div className="bg-white/5 border border-white/10 rounded-full flex items-center justify-center p-0.5">
+                <div className="hidden sm:flex bg-white/5 border border-white/10 rounded-full items-center justify-center p-0.5">
                   <UserButton appearance={{ elements: { userButtonAvatarBox: "w-8 h-8" } }} />
                 </div>
               </Show>
@@ -206,14 +206,16 @@ export default function RadioPage() {
         )}
       </AnimatePresence>
 
-      {/* Wave background */}
-      <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
-        <HeroWave />
-      </div>
+      {/* Wave background (Disabled on mobile to prevent Android WebGL crash) */}
+      {!isMobile && (
+        <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
+          <HeroWave />
+        </div>
+      )}
 
-      {/* Aurora when playing */}
+      {/* Aurora when playing (Disabled on mobile to prevent OOM blur crashes) */}
       <AnimatePresence>
-        {isPlaying && (
+        {isPlaying && !isMobile && (
           <motion.div key="aurora" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 2 }} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
             <motion.div
@@ -244,6 +246,13 @@ export default function RadioPage() {
 
         {/* Super Chat Banner */}
         <SuperChatOverlay messages={superChats} />
+
+        {/* Floating Mobile User Button */}
+        <div className="fixed bottom-[100px] right-4 sm:hidden z-[65] pointer-events-auto">
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full flex items-center justify-center p-1.5 hover:scale-105 transition-transform active:scale-95">
+            <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10" } }} />
+          </div>
+        </div>
 
         {/* ── Main Content Area ── */}
         <div
