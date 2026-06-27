@@ -215,12 +215,13 @@ export default function RadioPage() {
                 return (
                   <button
                     key={tab.id}
+                    title=""
                     onClick={() => setActiveTab(tab.id)}
                     className={`relative p-2 rounded-xl transition-all ${
                       activeTab === tab.id ? 'text-white bg-white/10 shadow-[0_0_15px_rgba(255,107,53,0.3)]' : 'text-white/40 hover:text-white/80'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5" aria-hidden="true" />
                   </button>
                 );
               })}

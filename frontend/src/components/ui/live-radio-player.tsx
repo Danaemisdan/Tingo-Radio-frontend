@@ -190,8 +190,10 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
       } catch (err) {}
     };
 
+    // Fetch immediately on mount, and poll if playing
+    checkStatus();
+    
     if (isPlaying) {
-      checkStatus();
       const interval = setInterval(checkStatus, 5000);
       return () => clearInterval(interval);
     }
@@ -201,77 +203,71 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
     <div className="flex flex-col items-center w-full h-full sm:max-w-lg mx-auto relative z-30 justify-between sm:justify-center">
       <div className="w-full h-full sm:h-auto sm:bg-black/40 sm:backdrop-blur-3xl sm:border sm:border-white/10 sm:rounded-[2.5rem] px-4 py-8 sm:p-8 flex flex-col items-center justify-between sm:justify-center sm:shadow-[0_0_50px_rgba(0,0,0,0.5)]">
       
-      {/* Artwork Section */}
+      {/* Artwork Section (Always visible) */}
       <AnimatePresence>
-        {isPlaying && (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="w-full flex-1 flex flex-col justify-center items-center mb-6 sm:mb-8 pointer-events-auto min-h-[300px]"
-          >
-            <div className={isMobile ? "scale-100 sm:scale-100" : "scale-100"}>
-              <MusicArtwork 
-                artist={nowPlaying.artist} 
-                music={nowPlaying.title} 
-                albumArt={nowPlaying.coverUrl} 
-                isSong={true}
-                isLoading={false}
-                externalIsPlaying={true}
-              />
-            </div>
-          </motion.div>
-        )}
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 30, scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          className="w-full flex-1 flex flex-col justify-center items-center mb-6 sm:mb-8 pointer-events-auto min-h-[250px] sm:min-h-[300px]"
+        >
+          <div className={isMobile ? "scale-100 sm:scale-100" : "scale-100"}>
+            <MusicArtwork 
+              artist={nowPlaying.artist} 
+              music={nowPlaying.title} 
+              albumArt={nowPlaying.coverUrl} 
+              isSong={true}
+              isLoading={false}
+              externalIsPlaying={isPlaying}
+            />
+          </div>
+        </motion.div>
       </AnimatePresence>
 
-      {/* Track Info (Only visible when playing) */}
+      {/* Track Info (Always visible) */}
       <AnimatePresence>
-        {isPlaying && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center w-full px-4 mb-6"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center w-full px-4 mb-6"
+        >
+          <motion.h2
+            key={displayTitle}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: isTranslating ? 0.4 : 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-2xl sm:text-3xl font-black text-white truncate max-w-full drop-shadow-md"
           >
-            <motion.h2
-              key={displayTitle}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: isTranslating ? 0.4 : 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="text-2xl sm:text-3xl font-black text-white truncate max-w-full drop-shadow-md"
-            >
-              {displayTitle}
-            </motion.h2>
-            <motion.p
-              key={displayArtist}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: isTranslating ? 0.4 : 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.05 }}
-              className="text-white/60 font-medium text-sm sm:text-base mt-1 tracking-wide truncate max-w-full"
-            >
-              {displayArtist}
-            </motion.p>
-            {language !== 'en' && nowPlaying.type !== 'music' && (
-              <p className="text-white/25 text-[10px] mt-1.5 tracking-wide">
-                {isTranslating ? 'Translating...' : `Translated`}
-              </p>
-            )}
-          </motion.div>
-        )}
+            {displayTitle}
+          </motion.h2>
+          <motion.p
+            key={displayArtist}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: isTranslating ? 0.4 : 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="text-white/60 font-medium text-sm sm:text-base mt-1 tracking-wide truncate max-w-full"
+          >
+            {displayArtist}
+          </motion.p>
+          {language !== 'en' && nowPlaying.type !== 'music' && (
+            <p className="text-white/25 text-[10px] mt-1.5 tracking-wide">
+              {isTranslating ? 'Translating...' : `Translated`}
+            </p>
+          )}
+        </motion.div>
       </AnimatePresence>
 
-      {/* Action buttons */}
+      {/* Action buttons (Desktop only) */}
       <AnimatePresence>
-        {isPlaying && (
-          <motion.div key="actions"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="flex items-center justify-center gap-5 sm:gap-4 dark mb-6 pointer-events-auto z-20"
-          >
-            <MicroExpander onClick={toggleSave} icon={<Heart className="w-5 h-5" />} isActive={isSaved} text={isSaved ? "Saved" : "Save Track"} />
-            <MicroExpander onClick={handleShare} icon={<Share2 className="w-5 h-5" />} isActive={false} text="Share" />
-          </motion.div>
-        )}
+        <motion.div key="actions"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="hidden md:flex items-center justify-center gap-5 sm:gap-4 dark mb-6 pointer-events-auto z-20"
+        >
+          <MicroExpander onClick={toggleSave} icon={<Heart className="w-5 h-5" />} isActive={isSaved} text={isSaved ? "Saved" : "Save Track"} />
+          <MicroExpander onClick={handleShare} icon={<Share2 className="w-5 h-5" />} isActive={false} text="Share" />
+        </motion.div>
       </AnimatePresence>
 
       {/* Player Controls (Always visible block) */}
@@ -282,7 +278,7 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="text-white/40 text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase mb-1 animate-pulse pointer-events-none mt-12 sm:mt-0"
+              className="text-white/40 text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase mb-1 animate-pulse pointer-events-none mt-4 sm:mt-0"
             >
               Tap to tune in
             </motion.div>
@@ -291,8 +287,10 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
 
         {/* Play Button Row */}
         <div className="w-full flex items-center justify-center gap-6 sm:gap-8 mb-2 pointer-events-auto">
-          {/* Left spacer to keep play button perfectly centered on mobile (MicroExpander is 56px wide) */}
-          <div className="w-[56px] h-[56px] md:hidden flex-shrink-0" />
+          {/* Mobile Save Toggle left side */}
+          <div className="md:hidden flex items-center justify-center flex-shrink-0">
+             <MicroExpander onClick={toggleSave} icon={<Heart className="w-5 h-5" />} isActive={isSaved} text={isSaved ? "Saved" : "Save"} />
+          </div>
           
           <div className="p-2 rounded-full border border-white/10 shadow-2xl flex items-center justify-center hover:border-white/30 cursor-pointer z-10 transition-colors bg-white/5 sm:bg-black/60 sm:backdrop-blur-md">
              <MusicToggleButton onPlayChange={setIsPlaying} volume={volume} />
