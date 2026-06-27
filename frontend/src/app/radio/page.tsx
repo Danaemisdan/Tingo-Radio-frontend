@@ -228,13 +228,58 @@ export default function RadioPage() {
             </div>
 
             {/* Language & User Controls (Bottom) */}
-            <div className="shrink-0 flex flex-col items-center gap-6 pb-[env(safe-area-inset-bottom)] pb-8">
+            <div className="shrink-0 flex flex-col items-center gap-6 pb-[env(safe-area-inset-bottom)] pb-8 relative">
               <button
                 onClick={() => setLangOpen(o => !o)}
                 className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px]"
               >
                 {currentLang.flag}
               </button>
+              
+              <AnimatePresence>
+                  {langOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[49]" onClick={() => setLangOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, x: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -8, scale: 0.95 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        className="absolute bottom-16 left-[calc(100%+16px)] z-[50] min-w-[180px] rounded-2xl overflow-hidden"
+                        style={{
+                          background: 'rgba(12,12,18,0.97)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          backdropFilter: 'blur(30px)',
+                          WebkitBackdropFilter: 'blur(30px)',
+                          boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                        }}
+                      >
+                        {LANGUAGES.map((lang, i) => (
+                          <motion.button
+                            key={lang.code}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => { setLanguage(lang.code); setLangOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all text-left ${
+                              lang.code === language
+                                ? 'text-white font-semibold bg-white/5'
+                                : 'text-white/55 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            <span className="text-base">{lang.flag}</span>
+                            <span className="flex-1">{lang.label}</span>
+                            {lang.code === language && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+              </AnimatePresence>
               
               <Show when="signed-in">
                 <div className="bg-white/5 border border-white/10 rounded-full flex items-center justify-center p-0.5">
