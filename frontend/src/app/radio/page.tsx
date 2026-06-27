@@ -2,18 +2,23 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import HeroWave from '@/components/ui/dynamic-wave-canvas-background';
-import { Heart, Share2, ListPlus } from 'lucide-react';
+import { Heart, Share2, ListPlus, Radio, Archive, Music, Bookmark } from 'lucide-react';
 import { MicroExpander } from '@/components/ui/micro-expander';
 import { MusicToggleButton } from '@/components/ui/music-toggle-btn';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MinimalVolumeBar } from '@/components/ui/minimal-volume-bar';
-import { LiveChat, FloatingEmojiOverlay, SuperChatOverlay, FloatingEmoji } from '@/components/ui/live-chat';
+import type { FloatingEmoji } from '@/components/ui/live-chat';
 import { SplashHero } from '@/components/ui/music-reactive-hero-section';
 import { LiveRadioPlayer } from '@/components/ui/live-radio-player';
-import { SavedTracksView } from '@/components/ui/saved-tracks';
-import { MusicLibraryView } from '@/components/ui/music-library';
-import { SessionsView } from '@/components/ui/sessions-view';
 import { Show, SignIn, UserButton } from '@clerk/nextjs';
+import dynamic from 'next/dynamic';
+
+const LiveChat = dynamic(() => import('@/components/ui/live-chat').then(m => m.LiveChat), { ssr: false });
+const FloatingEmojiOverlay = dynamic(() => import('@/components/ui/live-chat').then(m => m.FloatingEmojiOverlay), { ssr: false });
+const SuperChatOverlay = dynamic(() => import('@/components/ui/live-chat').then(m => m.SuperChatOverlay), { ssr: false });
+const SavedTracksView = dynamic(() => import('@/components/ui/saved-tracks').then(m => m.SavedTracksView), { ssr: false });
+const MusicLibraryView = dynamic(() => import('@/components/ui/music-library').then(m => m.MusicLibraryView), { ssr: false });
+const SessionsView = dynamic(() => import('@/components/ui/sessions-view').then(m => m.SessionsView), { ssr: false });
 
 type Tab = 'radio' | 'archive' | 'sounds' | 'collection';
 
@@ -24,11 +29,11 @@ interface ChatMessage {
   type?: "normal" | "reaction" | "superchat";
 }
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'radio',      label: 'Live' },
-  { id: 'archive',    label: 'The Archive' },
-  { id: 'sounds',     label: 'Tingo Sounds' },
-  { id: 'collection', label: 'My Collection' },
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: 'radio',      label: 'Live',          icon: Radio },
+  { id: 'archive',    label: 'The Archive',   icon: Archive },
+  { id: 'sounds',     label: 'Tingo Sounds',  icon: Music },
+  { id: 'collection', label: 'My Collection', icon: Heart },
 ];
 
 const LANGUAGES = [
@@ -73,14 +78,14 @@ export default function RadioPage() {
   return (
     <main className="relative min-h-screen min-h-dvh w-full bg-black text-white overflow-hidden selection:bg-white/30">
 
-      {/* ── Top Navigation ── */}
+      {/* ── Top Navigation (Desktop) ── */}
       <AnimatePresence>
         {hasTunedIn && (
           <motion.nav
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className={[
-              "fixed top-0 inset-x-0 z-[60] h-[calc(4rem+env(safe-area-inset-top))] sm:h-[calc(5rem+env(safe-area-inset-top))] flex items-center pt-[env(safe-area-inset-top)] px-3 sm:px-6 gap-2 sm:gap-4 transition-[padding] duration-500",
+              "hidden sm:flex fixed top-0 inset-x-0 z-[60] h-[calc(5rem+env(safe-area-inset-top))] items-center pt-[env(safe-area-inset-top)] px-6 gap-4 transition-[padding] duration-500",
               // Shift nav content left when the chat sidebar is visible on desktop
               isPlaying && activeTab === 'radio' ? "md:pr-[344px]" : "",
             ].join(" ")}
@@ -190,6 +195,56 @@ export default function RadioPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Left Dock (Mobile) ── */}
+      <AnimatePresence>
+        {hasTunedIn && (
+          <motion.nav
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="sm:hidden fixed left-0 top-0 bottom-0 z-[60] w-14 flex flex-col items-center py-4 gap-6 border-r border-white/5 bg-black"
+          >
+            {/* Logo */}
+            <div className="shrink-0 w-8 flex items-center justify-center pt-[env(safe-area-inset-top)]">
+              <img src="/tingo_logo_minimal.svg" alt="Tingo" className="w-6 h-6 object-contain" />
+            </div>
+
+            {/* Tabs */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-8 w-full mt-4">
+              {TABS.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative p-2 rounded-xl transition-all ${
+                      activeTab === tab.id ? 'text-white bg-white/10 shadow-[0_0_15px_rgba(255,107,53,0.3)]' : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Language & User Controls (Bottom) */}
+            <div className="shrink-0 flex flex-col items-center gap-6 pb-[env(safe-area-inset-bottom)] pb-8">
+              <button
+                onClick={() => setLangOpen(o => !o)}
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px]"
+              >
+                {currentLang.flag}
+              </button>
+              
+              <Show when="signed-in">
+                <div className="bg-white/5 border border-white/10 rounded-full flex items-center justify-center p-0.5">
+                  <UserButton appearance={{ elements: { userButtonAvatarBox: "w-8 h-8" } }} />
+                </div>
+              </Show>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
+
       {/* Fade-in from black */}
       <motion.div initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 1.0 }}
         className="fixed inset-0 z-[9999] bg-black pointer-events-none" />
@@ -249,17 +304,12 @@ export default function RadioPage() {
         {/* Super Chat Banner */}
         <SuperChatOverlay messages={superChats} />
 
-        {/* Floating Mobile User Button */}
-        <div className="fixed bottom-[100px] right-4 sm:hidden z-[65] pointer-events-auto">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full flex items-center justify-center p-1.5 hover:scale-105 transition-transform active:scale-95">
-            <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10" } }} />
-          </div>
-        </div>
-
         {/* ── Main Content Area ── */}
         <div
           className={[
-            "absolute inset-0 z-30 pt-20",
+            "absolute inset-0 z-30",
+            "pl-14 sm:pl-0", // Mobile left dock offset
+            "pt-[env(safe-area-inset-top)] sm:pt-20", // Desktop top nav offset
             isPlaying && activeTab === 'radio' ? "md:pr-[320px]" : "",
             "transition-all duration-500",
           ].join(" ")}
