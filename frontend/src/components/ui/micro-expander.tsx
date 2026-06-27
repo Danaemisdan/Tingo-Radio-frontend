@@ -54,7 +54,7 @@ const MicroExpander = React.forwardRef<HTMLButtonElement, MicroExpanderProps>(
     };
 
     const activeClass = "bg-white text-black border-transparent shadow-[0_0_20px_rgba(255,255,255,0.2)]";
-    const inactiveClass = "bg-[#4a362f] text-white border-white/5 shadow-lg";
+    const inactiveClass = "bg-white/10 text-white border-white/10 hover:bg-white/20 backdrop-blur-md shadow-lg";
 
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
       if (isLoading) return;
