@@ -356,10 +356,10 @@ export default function RadioPage() {
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
             className="hidden md:flex fixed top-0 right-0 h-full w-80 z-40 flex-col"
             style={{
-              background: "linear-gradient(180deg, rgba(28,22,18,0.97) 0%, rgba(18,14,12,0.98) 100%)",
+              background: "linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(0,0,0,0.98) 100%)",
               backdropFilter: "blur(24px)",
               WebkitBackdropFilter: "blur(24px)",
-              borderLeft: "1px solid rgba(255,255,255,0.07)",
+              borderLeft: "1px solid rgba(255,107,53,0.15)",
             }}
           >
             <LiveChat visible={true} isLive={isPlaying} onFloatingEmoji={handleFloatingEmoji} onClose={() => {}} />
@@ -375,7 +375,7 @@ export default function RadioPage() {
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
             className="md:hidden fixed inset-x-0 bottom-0 top-16 z-[70] flex flex-col rounded-t-3xl overflow-hidden"
             style={{
-              background: "linear-gradient(180deg, rgba(12,12,18,1) 0%, rgba(5,5,10,1) 100%)",
+              background: "linear-gradient(to bottom, rgba(10,10,10,0.95) 0%, rgba(0,0,0,1) 100%)",
               borderTop: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -10px 40px rgba(0,0,0,0.6)",
             }}

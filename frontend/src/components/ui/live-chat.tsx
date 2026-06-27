@@ -384,17 +384,14 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
         >
           {/* ── Header ── */}
           <div className="shrink-0 px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            {/* Gradient title with wrapper for proper glow */}
-            <div style={{ filter: "drop-shadow(0 0 12px rgba(251,146,60,0.8))" }}>
-              <h2 className="text-xl font-bold tracking-[0.2em] uppercase bg-gradient-to-b from-white via-orange-400 to-orange-600 bg-clip-text text-transparent pb-1 ml-1">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              <h2 className="text-sm font-black tracking-[0.25em] uppercase text-white">
                 Frequency
               </h2>
             </div>
-
-            {/* Subtitle */}
-
-            <p className="text-white/75 text-xs tracking-wide mt-1.5">
-              Chat with Ife &amp; Dozy in real time
+            <p className="text-white/40 text-[10px] uppercase tracking-widest mt-2 ml-4">
+              Live broadcast chat
             </p>
           </div>
 
@@ -486,14 +483,11 @@ export function LiveChat({ visible, isLive, onFloatingEmoji, onClose, isMobile }
             </AnimatePresence>
 
             {messages.length === 0 && !showPasscodeUI && (
-              <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full" />
-                  <span className="text-4xl relative z-10 drop-shadow-lg">✨</span>
-                </div>
-                <h4 className="text-white/80 font-medium text-sm mt-2">No messages yet</h4>
-                <p className="text-white/40 text-xs max-w-[200px] leading-relaxed">
-                  Join the conversation! Say hi — Ife and Tingo are listening.
+              <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-2 text-center opacity-60">
+                <span className="text-3xl mb-2 grayscale">💬</span>
+                <h4 className="text-white font-semibold text-sm">It's quiet in here</h4>
+                <p className="text-white/40 text-[11px] max-w-[200px] leading-relaxed">
+                  Be the first to send a message to the studio!
                 </p>
               </div>
             )}
