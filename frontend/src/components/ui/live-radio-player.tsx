@@ -9,15 +9,15 @@ import { Heart, Share2, ListPlus, MessageCircle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onChatToggle }: { isPlaying: boolean, setIsPlaying: (val: boolean) => void, language?: string, onChatToggle?: () => void }) {
-  const [nowPlaying, setNowPlaying] = useState({
-    title: "Booting...",
-    artist: "Tingo AI Radio",
+  const [nowPlaying, setNowPlaying] = useState<{title: string, artist: string, type: string, coverUrl: string}>({
+    title: "Tingo Live",
+    artist: "24/7 AI Radio",
     type: "show",
-    coverUrl: "/LLAMA.png",
+    coverUrl: "/LLAMA.png"
   });
   // Translated display values (may differ from raw API values)
-  const [displayTitle, setDisplayTitle] = useState("Booting...");
-  const [displayArtist, setDisplayArtist] = useState("Tingo AI Radio");
+  const [displayTitle, setDisplayTitle] = useState("Tingo Live");
+  const [displayArtist, setDisplayArtist] = useState("24/7 AI Radio");
   const [isTranslating, setIsTranslating] = useState(false);
   const [volume, setVolume] = useState(50);
   const [isMobile, setIsMobile] = useState(false);
@@ -139,9 +139,14 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
         .replace(/\[music video.*?\]/i, "")
         .replace(/ ft\. .*$/i, "")
         .replace(/ feat\. .*$/i, "")
+        .replace(/ featuring .*$/i, "")
+        .replace(/ w\/ .*$/i, "")
         .trim();
         
-      const query = encodeURIComponent(`${artist} ${cleanTitle}`);
+      // Also clean artist name (e.g. "Artist1 & Artist2" -> "Artist1")
+      const cleanArtist = artist.split(/ & | ft\. | feat\. | w\/ |,| x /i)[0].trim();
+        
+      const query = encodeURIComponent(`${cleanArtist} ${cleanTitle}`);
       const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
       const data = await res.json();
       if (data.results && data.results.length > 0) {
