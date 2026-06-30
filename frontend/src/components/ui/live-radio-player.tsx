@@ -178,9 +178,9 @@ export function LiveRadioPlayer({ isPlaying, setIsPlaying, language = 'en', onCh
             lastTitle = newTitle;
             lastArtist = newArtist;
             
-            let cover = "/LLAMA.png";
+            let cover = data.coverUrl || "/LLAMA.png";
             if (newType === "ad") cover = "/TingoAd.png"; // Fallback, could be branding
-            else if (newType === "music" && newArtist && newTitle) {
+            else if (newType === "music" && newArtist && newTitle && !data.coverUrl) {
                cover = await fetchAlbumArt(newArtist, newTitle);
             }
             
